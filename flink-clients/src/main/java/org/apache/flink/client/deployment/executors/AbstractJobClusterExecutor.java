@@ -41,37 +41,55 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An abstract {@link PipelineExecutor} used to execute {@link Pipeline pipelines} on dedicated (per-job) clusters.
+ * An abstract {@link PipelineExecutor} used to execute {@link Pipeline pipelines} on dedicated
+ * (per-job) clusters.
  *
  * @param <ClusterID> the type of the id of the cluster.
- * @param <ClientFactory> the type of the {@link ClusterClientFactory} used to create/retrieve a client to the target cluster.
+ * @param <ClientFactory> the type of the {@link ClusterClientFactory} used to create/retrieve a
+ *     client to the target cluster.
  */
 @Internal
-public class AbstractJobClusterExecutor<ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>> implements PipelineExecutor {
+public class AbstractJobClusterExecutor<
+                ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>>
+        implements PipelineExecutor {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractJobClusterExecutor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractJobClusterExecutor.class);
 
-	private final ClientFactory clusterClientFactory;
+    private final ClientFactory clusterClientFactory;
 
-	public AbstractJobClusterExecutor(@Nonnull final ClientFactory clusterClientFactory) {
-		this.clusterClientFactory = checkNotNull(clusterClientFactory);
-	}
+    public AbstractJobClusterExecutor(@Nonnull final ClientFactory clusterClientFactory) {
+        this.clusterClientFactory = checkNotNull(clusterClientFactory);
+    }
 
-	@Override
-	public CompletableFuture<JobClient> execute(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration, @Nonnull final ClassLoader userCodeClassloader) throws Exception {
-		final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
+    @Override
+    public CompletableFuture<JobClient> execute(
+            @Nonnull final Pipeline pipeline,
+            @Nonnull final Configuration configuration,
+            @Nonnull final ClassLoader userCodeClassloader)
+            throws Exception {
+        // streamGraph 转换为 jobGraph
+        final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
 
-		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
-			final ExecutionConfigAccessor configAccessor = ExecutionConfigAccessor.fromConfiguration(configuration);
+       // 获取集群描述器  创建并启动了yarn的客户端，包含了一些yarn flink的配置和环境信息
+        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
+                clusterClientFactory.createClusterDescriptor(configuration)) {
 
-			final ClusterSpecification clusterSpecification = clusterClientFactory.getClusterSpecification(configuration);
+            final ExecutionConfigAccessor configAccessor =
+                    ExecutionConfigAccessor.fromConfiguration(configuration);
 
-			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor
-					.deployJobCluster(clusterSpecification, jobGraph, configAccessor.getDetachedMode());
-			LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
+            //获取集群特有信息，资源配置 jobManager内存 taskManager内存 每个TM的slot数
+            final ClusterSpecification clusterSpecification =
+                    clusterClientFactory.getClusterSpecification(configuration);
 
-			return CompletableFuture.completedFuture(
-					new ClusterClientJobClientAdapter<>(clusterClientProvider, jobGraph.getJobID(), userCodeClassloader));
-		}
-	}
+            final ClusterClientProvider<ClusterID> clusterClientProvider =
+                    //部署job集群
+                    clusterDescriptor.deployJobCluster(
+                            clusterSpecification, jobGraph, configAccessor.getDetachedMode());
+            LOG.info("Job has been submitted with JobID " + jobGraph.getJobID());
+
+            return CompletableFuture.completedFuture(
+                    new ClusterClientJobClientAdapter<>(
+                            clusterClientProvider, jobGraph.getJobID(), userCodeClassloader));
+        }
+    }
 }

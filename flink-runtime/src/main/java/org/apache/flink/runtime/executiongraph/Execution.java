@@ -685,9 +685,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public void deploy() throws JobException {
 		assertRunningInJobMasterMainThread();
 
-		final LogicalSlot slot  = assignedResource;
+		final LogicalSlot slot = assignedResource;
 
-		checkNotNull(slot, "In order to deploy the execution we first have to assign a resource via tryAssignResource.");
+		checkNotNull(
+			slot,
+			"In order to deploy the execution we first have to assign a resource via tryAssignResource.");
 
 		// Check if the TaskManager died in the meantime
 		// This only speeds up the response to TaskManagers failing concurrently to deployments.
@@ -703,44 +705,70 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (!transitionState(previous, DEPLOYING)) {
 				// race condition, someone else beat us to the deploying call.
 				// this should actually not happen and indicates a race somewhere else
-				throw new IllegalStateException("Cannot deploy task: Concurrent deployment call race.");
+				throw new IllegalStateException(
+					"Cannot deploy task: Concurrent deployment call race.");
 			}
-		}
-		else {
+		} else {
 			// vertex may have been cancelled, or it was already scheduled
-			throw new IllegalStateException("The vertex must be in CREATED or SCHEDULED state to be deployed. Found state " + previous);
+			throw new IllegalStateException(
+				"The vertex must be in CREATED or SCHEDULED state to be deployed. Found state "
+					+ previous);
 		}
 
 		if (this != slot.getPayload()) {
 			throw new IllegalStateException(
-				String.format("The execution %s has not been assigned to the assigned slot.", this));
+				String.format(
+					"The execution %s has not been assigned to the assigned slot.", this));
 		}
 
 		try {
 
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {
-				slot.releaseSlot(new FlinkException("Actual state of execution " + this + " (" + state + ") does not match expected state DEPLOYING."));
+				slot.releaseSlot(
+					new FlinkException(
+						"Actual state of execution "
+							+ this
+							+ " ("
+							+ state
+							+ ") does not match expected state DEPLOYING."));
 				return;
 			}
 
-			LOG.info("Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}", vertex.getTaskNameWithSubtaskIndex(),
-				attemptNumber, vertex.getCurrentExecutionAttempt().getAttemptId(), getAssignedResourceLocation(), slot.getAllocationId());
+			LOG.info(
+				"Deploying {} (attempt #{}) with attempt id {} to {} with allocation id {}",
+				vertex.getTaskNameWithSubtaskIndex(),
+				attemptNumber,
+				vertex.getCurrentExecutionAttempt().getAttemptId(),
+				getAssignedResourceLocation(),
+				slot.getAllocationId());
 
 			if (taskRestore != null) {
-				checkState(taskRestore.getTaskStateSnapshot().getSubtaskStateMappings().stream().allMatch(entry ->
-					entry.getValue().getInputRescalingDescriptor().equals(InflightDataRescalingDescriptor.NO_RESCALE) &&
-					entry.getValue().getOutputRescalingDescriptor().equals(InflightDataRescalingDescriptor.NO_RESCALE)),
+				checkState(
+					taskRestore.getTaskStateSnapshot().getSubtaskStateMappings().stream()
+						.allMatch(
+							entry ->
+								entry.getValue()
+									.getInputRescalingDescriptor()
+									.equals(
+										InflightDataRescalingDescriptor
+											.NO_RESCALE)
+									&& entry.getValue()
+									.getOutputRescalingDescriptor()
+									.equals(
+										InflightDataRescalingDescriptor
+											.NO_RESCALE)),
 					"Rescaling from unaligned checkpoint is not yet supported.");
 			}
 
-			final TaskDeploymentDescriptor deployment = TaskDeploymentDescriptorFactory
-				.fromExecutionVertex(vertex, attemptNumber)
-				.createDeploymentDescriptor(
-					slot.getAllocationId(),
-					slot.getPhysicalSlotNumber(),
-					taskRestore,
-					producedPartitions.values());
+			//executionGraph转为了物理执行图 相关信息
+			final TaskDeploymentDescriptor deployment =
+				TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, attemptNumber)
+					.createDeploymentDescriptor(
+						slot.getAllocationId(),
+						slot.getPhysicalSlotNumber(),
+						taskRestore,
+						producedPartitions.values());
 
 			// null taskRestore to let it be GC'ed
 			taskRestore = null;
@@ -751,9 +779,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
 
 			getVertex().notifyPendingDeployment(this);
-			// We run the submission in the future executor so that the serialization of large TDDs does not block
+			// We run the submission in the future executor so that the serialization of large TDDs
+			// does not block
 			// the main thread and sync back to the main thread once submission is completed.
-			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+			CompletableFuture.supplyAsync(
+				//tm提交任务
+				() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
 				.thenCompose(Function.identity())
 				.whenCompleteAsync(
 					(ack, failure) -> {
@@ -761,11 +792,21 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							vertex.notifyCompletedDeployment(this);
 						} else {
 							if (failure instanceof TimeoutException) {
-								String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
+								String taskname =
+									vertex.getTaskNameWithSubtaskIndex()
+										+ " ("
+										+ attemptId
+										+ ')';
 
-								markFailed(new Exception(
-									"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
-										+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
+								markFailed(
+									new Exception(
+										"Cannot deploy task "
+											+ taskname
+											+ " - TaskManager ("
+											+ getAssignedResourceLocation()
+											+ ") not responding after a rpcTimeout of "
+											+ rpcTimeout,
+										failure));
 							} else {
 								markFailed(failure);
 							}
@@ -773,8 +814,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					},
 					jobMasterMainThreadExecutor);
 
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			markFailed(t);
 
 			if (isLegacyScheduling()) {
