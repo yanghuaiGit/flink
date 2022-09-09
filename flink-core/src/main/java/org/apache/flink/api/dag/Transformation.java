@@ -114,16 +114,20 @@ public abstract class Transformation<T> {
         return idCounter;
     }
 
+    /** 转换器的名称，主要用于可视化. */
     protected final int id;
 
+    /** 转换器的名称，主要用于可视化. */
     protected String name;
 
+    /** 转换器的名称，主要用于可视化. */
     protected TypeInformation<T> outputType;
     // This is used to handle MissingTypeInfo. As long as the outputType has not been queried
     // it can still be changed using setOutputType(). Afterwards an exception is thrown when
     // trying to change the output type.
     protected boolean typeUsed;
 
+    /** 转换器的名称，主要用于可视化. */
     private int parallelism;
 
     /**
@@ -159,14 +163,16 @@ public abstract class Transformation<T> {
     /**
      * User-specified ID for this transformation. This is used to assign the same operator ID across
      * job restarts. There is also the automatically generated {@link #id}, which is assigned from a
-     * static counter. That field is independent from this.
+     * static counter. That field is independent from this. 转换器的名称，主要用于可视化.
      */
     private String uid;
 
     private String userProvidedNodeHash;
 
+    /** 转换器的名称，主要用于可视化. */
     protected long bufferTimeout = -1;
 
+    /** 转换器的名称，主要用于可视化. */
     private String slotSharingGroup;
 
     @Nullable private String coLocationGroupKey;
