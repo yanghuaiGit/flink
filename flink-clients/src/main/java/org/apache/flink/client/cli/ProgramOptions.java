@@ -70,11 +70,13 @@ public class ProgramOptions extends CommandLineOptions {
     protected ProgramOptions(CommandLine line) throws CliArgsException {
         super(line);
 
+        // main 函数 入口类  example -c org.test.test.Main
         this.entryPointClass =
                 line.hasOption(CLASS_OPTION.getOpt())
                         ? line.getOptionValue(CLASS_OPTION.getOpt())
                         : null;
 
+        // 任务jar example -j xxx/xxx/xxx/a.jar
         this.jarFilePath =
                 line.hasOption(JAR_OPTION.getOpt())
                         ? line.getOptionValue(JAR_OPTION.getOpt())

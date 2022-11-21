@@ -80,6 +80,7 @@ public enum ClientUtils {
                     "Starting program (detached: {})",
                     !configuration.getBoolean(DeploymentOptions.ATTACHED));
 
+            /** 配置执行环境environment上下文，用户代码里getExecutionEnvironment 就是这个environment* */
             ContextEnvironment.setAsContext(
                     executorServiceLoader,
                     configuration,

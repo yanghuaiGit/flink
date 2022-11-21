@@ -224,13 +224,17 @@ public class CliFrontend {
             return;
         }
 
+        /** Generic yarn default 选取一个* */
         final CustomCommandLine activeCommandLine =
                 validateAndGetActiveCommandLine(checkNotNull(commandLine));
 
+        // 参数封装 比如指定了入口类 指定了jar  指定了classpath的一些jar 指定并行度 指定savepoint配置.
         final ProgramOptions programOptions = ProgramOptions.create(commandLine);
 
+        // 获取jar包 以及jar包里依赖的jar包 以及入口类
         final List<URL> jobJars = getJobJarAndDependencies(programOptions);
 
+        /** 获取有效配置 ha的id target(session/perjob) slot数 jobmanager内存 taskmanager内存..* */
         final Configuration effectiveConfiguration =
                 getEffectiveConfiguration(activeCommandLine, commandLine, programOptions, jobJars);
 
@@ -283,7 +287,7 @@ public class CliFrontend {
 
         return effectiveConfiguration;
     }
-
+    /** 获取有效配置 ha的id target(session/perjob) slot数 jobmanager内存 taskmanager内存..* */
     private <T> Configuration getEffectiveConfiguration(
             final CustomCommandLine activeCustomCommandLine,
             final CommandLine commandLine,
@@ -1142,7 +1146,10 @@ public class CliFrontend {
         }
     }
 
-    /** Submits the job based on the arguments. */
+    /**
+     * Submits the job based on the arguments. perjob run -t yarn-per-job
+     * /opt/module/examples/streaming/socketwindowwordcount.jar --port 9999.
+     */
     public static void main(final String[] args) {
         EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
@@ -1218,6 +1225,13 @@ public class CliFrontend {
         config.setInteger(RestOptions.PORT, address.getPort());
     }
 
+    /**
+     * 依次添加Generic(yarn-per-job/yarn-session) YarnSession Default 三种命令行客户端，后面根据isActive()按顺序进行选择
+     *
+     * @param configuration flinkConf配置
+     * @param configurationDirectory flinkConf配置文件路径
+     * @return
+     */
     public static List<CustomCommandLine> loadCustomCommandLines(
             Configuration configuration, String configurationDirectory) {
         List<CustomCommandLine> customCommandLines = new ArrayList<>();

@@ -265,7 +265,7 @@ public class PackagedProgram implements AutoCloseable {
         return libs;
     }
 
-    /** Returns all provided libraries needed to run the program. */
+    /** Returns all provided libraries needed to run the program. 获取jar包以及jar包里依赖的jar包 */
     public static List<URL> getJobJarAndDependencies(
             File jarFile, @Nullable String entryPointClassName) throws ProgramInvocationException {
         URL jarFileUrl = loadJarFile(jarFile);

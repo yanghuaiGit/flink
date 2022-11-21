@@ -244,6 +244,15 @@ public class HadoopUtils {
                                 + "/hdfs-site.xml to hadoop configuration");
                 foundHadoopConfiguration = true;
             }
+            if (new File(possibleHadoopConfPath + "/yarn-site.xml").exists()) {
+                configuration.addResource(
+                        new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/yarn-site.xml"));
+                LOG.debug(
+                        "Adding "
+                                + possibleHadoopConfPath
+                                + "/hdfs-site.xml to hadoop configuration");
+                foundHadoopConfiguration = true;
+            }
         }
         return foundHadoopConfiguration;
     }

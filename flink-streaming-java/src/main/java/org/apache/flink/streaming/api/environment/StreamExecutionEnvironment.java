@@ -169,6 +169,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     /**
      * The environment of the context (local by default, cluster if invoked through command line).
+     * 用于命令行模式提交任务，当用户使用客户端提交作业时，就会通过contextEnvironmentFactory创建streamExecutionEnvironment
      */
     private static StreamExecutionEnvironmentFactory contextEnvironmentFactory = null;
 
@@ -181,12 +182,13 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     // ------------------------------------------------------------------------
 
-    /** The execution configuration for this environment. */
+    /** The execution configuration for this environment. 当前运行环境中的执行参数*/
     protected final ExecutionConfig config = new ExecutionConfig();
 
-    /** Settings that control the checkpointing behavior. */
+    /** Settings that control the checkpointing behavior. checkPoint相关配置*/
     protected final CheckpointConfig checkpointCfg = new CheckpointConfig();
 
+    /** dataStream和dataStream之间的转换操作都会生成Transformation对象*/
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
@@ -210,6 +212,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile =
             new ArrayList<>();
 
+    /**通过SPI技术加载PipelineExecutorFactory实现类*/
     private final PipelineExecutorServiceLoader executorServiceLoader;
 
     /**
@@ -220,6 +223,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * <p>In the long-term, this {@link Configuration} object should be the source of truth for
      * newly added {@link ConfigOption}s that are relevant for DataStream API. Make sure to also
      * update {@link #configure(ReadableConfig, ClassLoader)}.
+     *
+     * 用于执行环境中的K-V配置
      */
     protected final Configuration configuration;
 
