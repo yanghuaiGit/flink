@@ -80,6 +80,7 @@ public class YarnClusterClientFactory
         final YarnConfiguration yarnConfiguration =
                 Utils.getYarnAndHadoopConfiguration(configuration);
 
+        // 初始化和启动yarnClient
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
 

@@ -960,6 +960,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                 jobGraph.getJobID(),
                 getFencingToken());
 
+        //启动调度器
         startScheduling();
     }
 
@@ -1187,6 +1188,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                             resourceManagerGateway, resourceManagerResourceId);
 
             blocklistHandler.registerBlocklistListener(resourceManagerGateway);
+            //slotPool连接到resourceManager并请求资源
             slotPoolService.connectToResourceManager(resourceManagerGateway);
             partitionTracker.connectToResourceManager(resourceManagerGateway);
 

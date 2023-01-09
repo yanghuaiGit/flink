@@ -490,6 +490,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             return deployInternal(
                     clusterSpecification,
                     "Flink per-job cluster",
+                    // 提交入口
                     getYarnJobClusterEntrypoint(),
                     jobGraph,
                     detached);
@@ -604,6 +605,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         final ClusterSpecification validClusterSpecification;
         try {
+            // yarn资源校验
             validClusterSpecification =
                     validateClusterResources(
                             clusterSpecification, yarnMinAllocationMB, maxRes, freeClusterMem);
@@ -793,7 +795,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             ClusterSpecification clusterSpecification)
             throws Exception {
 
-        // ------------------ Initialize the file systems 初始化文件系统 -------------------------
+        // ------------------ Initialize the file systems 初始化文件系统 HDFS -------------------------
 
         org.apache.flink.core.fs.FileSystem.initialize(
                 configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
@@ -815,10 +817,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // 应用提交的上下文
         ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
-        // 获取远程jar路径
+        // 获取远程jar路径 flink配置文件里的 yarn.provided.lib.dirs
         final List<Path> providedLibDirs =
                 Utils.getQualifiedRemoteProvidedLibDirs(configuration, yarnConfiguration);
 
+        // 获取用户依赖jar  flink配置文件里的 yarn.provided.usrlib.dir
         final Optional<Path> providedUsrLibDir =
                 Utils.getQualifiedRemoteProvidedUsrLib(configuration, yarnConfiguration);
 
@@ -885,7 +888,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
         }
 
-        // only for per job mode
+        // only for per job mode 用户依赖的一些jar包
         if (jobGraph != null) {
             for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
                     jobGraph.getUserArtifacts().entrySet()) {
@@ -1000,14 +1003,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             classPathBuilder.append(classPath).append(File.pathSeparator);
         }
 
-        // Setup jar for ApplicationMaster
+        // Setup jar for ApplicationMaster  提交flink-dist包
         final YarnLocalResourceDescriptor localResourceDescFlinkJar =
                 fileUploader.uploadFlinkDist(flinkJarPath);
         classPathBuilder
                 .append(localResourceDescFlinkJar.getResourceKey())
                 .append(File.pathSeparator);
 
-        // write job graph to tmp file and add it to local resource
+        // write job graph to tmp file and add it to local resource  jobGraph写到本地文件
         // TODO: server use user main method to generate job graph
         if (jobGraph != null) {
             File tmpJobGraphFile = null;

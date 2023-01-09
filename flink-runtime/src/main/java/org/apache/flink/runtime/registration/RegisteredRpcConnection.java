@@ -102,9 +102,11 @@ public abstract class RegisteredRpcConnection<
                 !isConnected() && pendingRegistration == null,
                 "The RPC connection is already started");
 
+        //创建注册对象
         final RetryingRegistration<F, G, S, R> newRegistration = createNewRegistration();
 
         if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {
+           //注册成功之后开始回调的方法
             newRegistration.startRegistration();
         } else {
             // concurrent start operation

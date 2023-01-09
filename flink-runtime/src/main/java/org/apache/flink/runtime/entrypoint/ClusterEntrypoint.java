@@ -279,6 +279,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private void runCluster(Configuration configuration, PluginManager pluginManager)
             throws Exception {
         synchronized (lock) {
+            // 初始化akka blob
             initializeServices(configuration, pluginManager);
 
             // write host information into configuration
@@ -290,6 +291,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             createDispatcherResourceManagerComponentFactory(configuration);
 
             clusterComponent =
+                    // 创建和启动jobManager的组件 dispatcher 和 ResourceManager`和 jobMaster
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
                             resourceId.unwrap(),

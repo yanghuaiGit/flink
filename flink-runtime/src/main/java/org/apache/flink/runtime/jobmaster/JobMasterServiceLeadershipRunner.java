@@ -306,6 +306,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                 "Create new JobMasterServiceProcess because we were granted leadership under {}.",
                 leaderSessionId);
 
+        //创建jobmaster`
         jobMasterServiceProcess = jobMasterServiceProcessFactory.create(leaderSessionId);
 
         forwardIfValidLeader(

@@ -551,6 +551,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         .thenApply(
                                 acknowledge -> {
                                     validateRunsInMainThread();
+                                    //resourceManager内部的slotManager向yarn的ResourceManager申请资源
                                     slotManager.processResourceRequirements(resourceRequirements);
                                     return null;
                                 });

@@ -118,7 +118,17 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-annotations</artifactId>
+			<version>${project.version}</version>
+        </dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+    </dependencies>
 
 	<build>
 		<plugins>

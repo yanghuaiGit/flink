@@ -1105,6 +1105,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     allocateSlotForJob(jobId, slotId, allocationId, resourceProfile, targetAddress);
 
             if (isConnected) {
+                //向jobManafer提供slot
                 offerSlotsToJobManager(jobId);
             }
 
@@ -1128,6 +1129,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         try {
             job =
+        //和jobmanager做个链接
                     jobTable.getOrCreateJob(
                             jobId, () -> registerNewJobAndCreateServices(jobId, targetAddress));
         } catch (Exception e) {
@@ -1170,6 +1172,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             SlotID slotId, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile)
             throws SlotAllocationException {
         if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
+            //根据RM的命令 分配自己的slot
             if (taskSlotTable.allocateSlot(
                     slotId.getSlotNumber(),
                     jobId,

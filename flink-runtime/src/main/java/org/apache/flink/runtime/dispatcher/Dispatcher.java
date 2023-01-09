@@ -305,6 +305,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         }
 
         startCleanupRetries();
+        //启动jobMaster
         startRecoveredJobs();
 
         this.dispatcherBootstrap =

@@ -1,4 +1,4 @@
-///*
+/// *
 // * Licensed to the Apache Software Foundation (ASF) under one
 // * or more contributor license agreements.  See the NOTICE file
 // * distributed with this work for additional information
@@ -16,28 +16,28 @@
 // * limitations under the License.
 // */
 //
-//package org.apache.flink.formats.avro.registry.confluent;
+// package org.apache.flink.formats.avro.registry.confluent;
 //
-//import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
-//import io.confluent.kafka.schemaregistry.client.rest.RestService;
-//import io.confluent.kafka.schemaregistry.client.security.basicauth.BasicAuthCredentialProvider;
-//import io.confluent.kafka.schemaregistry.client.security.bearerauth.BearerAuthCredentialProvider;
-//import org.junit.jupiter.api.Test;
-//import org.powermock.reflect.Whitebox;
+// import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+// import io.confluent.kafka.schemaregistry.client.rest.RestService;
+// import io.confluent.kafka.schemaregistry.client.security.basicauth.BasicAuthCredentialProvider;
+// import io.confluent.kafka.schemaregistry.client.security.bearerauth.BearerAuthCredentialProvider;
+// import org.junit.jupiter.api.Test;
+// import org.powermock.reflect.Whitebox;
 //
-//import javax.net.ssl.SSLSocketFactory;
+// import javax.net.ssl.SSLSocketFactory;
 //
-//import java.net.URISyntaxException;
-//import java.util.HashMap;
-//import java.util.Map;
+// import java.net.URISyntaxException;
+// import java.util.HashMap;
+// import java.util.Map;
 //
-//import static org.assertj.core.api.Assertions.assertThat;
+// import static org.assertj.core.api.Assertions.assertThat;
 //
-///**
+/// **
 // * Tests for properties set by {@link RegistryAvroFormatFactory} in {@link
 // * CachedSchemaCoderProvider}.
 // */
-//class CachedSchemaCoderProviderTest {
+// class CachedSchemaCoderProviderTest {
 //
 //    @Test
 //    void testThatSslIsNotInitializedForNoSslProperties() {
@@ -124,11 +124,12 @@
 //        return getInternalStateFromRestService("bearerAuthCredentialProvider", provider);
 //    }
 //
-//    private <T> T getInternalStateFromRestService(String name, CachedSchemaCoderProvider provider) {
+//    private <T> T getInternalStateFromRestService(String name, CachedSchemaCoderProvider provider)
+// {
 //        CachedSchemaRegistryClient cachedSchemaRegistryClient =
 //                Whitebox.getInternalState(provider.get(), "schemaRegistryClient");
 //        RestService restService =
 //                Whitebox.getInternalState(cachedSchemaRegistryClient, "restService");
 //        return Whitebox.getInternalState(restService, name);
 //    }
-//}
+// }
