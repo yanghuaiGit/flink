@@ -156,6 +156,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         return ReceiveBuilder.create()
                 .match(RemoteHandshakeMessage.class, this::handleHandshakeMessage)
                 .match(ControlMessages.class, this::handleControlMessage)
+                //处理rpc消息
                 .matchAny(this::handleMessage)
                 .build();
     }
@@ -250,6 +251,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                                     "The rpc endpoint does not support the gateway %s.",
                                     handshakeMessage.getRpcGateway().getSimpleName())));
         } else {
+            //tell的方式进行回应
             getSender().tell(new Status.Success(HandshakeSuccessMessage.INSTANCE), getSelf());
         }
     }
