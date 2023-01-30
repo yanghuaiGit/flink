@@ -442,6 +442,7 @@ public class ExecutionJobVertex
             throws JobException {
         checkState(isInitialized());
 
+        //获取输入的JobEdge列表
         List<JobEdge> inputs = jobVertex.getInputs();
 
         if (LOG.isDebugEnabled()) {
@@ -478,6 +479,7 @@ public class ExecutionJobVertex
             // fetch the intermediate result via ID. if it does not exist, then it either has not
             // been created, or the order
             // in which this method is called for the job vertices is not a topological order
+            //通过id获取当前JobEdge的输入所对应的IntermediateResult
             IntermediateResult ires = intermediateDataSets.get(edge.getSourceId());
             if (ires == null) {
                 throw new JobException(
@@ -485,8 +487,10 @@ public class ExecutionJobVertex
                                 + edge.getSourceId());
             }
 
+            //将IntermediateResult 加入到当前ExecutionJobVertex的输入中
             this.inputs.add(ires);
 
+            //将ExecutionJobVertex 与 IntermediateResult关联起来
             EdgeManagerBuildUtil.connectVertexToResult(this, ires, edge.getDistributionPattern());
         }
     }

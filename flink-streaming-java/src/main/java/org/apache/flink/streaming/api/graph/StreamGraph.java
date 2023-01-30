@@ -631,6 +631,7 @@ public class StreamGraph implements Pipeline {
                 intermediateDataSetId);
     }
 
+    //按照类型加边
     private void addEdgeInternal(
             Integer upStreamVertexID,
             Integer downStreamVertexID,
@@ -641,6 +642,7 @@ public class StreamGraph implements Pipeline {
             StreamExchangeMode exchangeMode,
             IntermediateDataSetID intermediateDataSetId) {
 
+        //上游是侧输出时，递归调用，并传入侧输出信息
         if (virtualSideOutputNodes.containsKey(upStreamVertexID)) {
             int virtualId = upStreamVertexID;
             upStreamVertexID = virtualSideOutputNodes.get(virtualId).f0;
@@ -657,6 +659,7 @@ public class StreamGraph implements Pipeline {
                     exchangeMode,
                     intermediateDataSetId);
         } else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
+            //如果上游是partition时，递归调用，并传入partition信息
             int virtualId = upStreamVertexID;
             upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
             if (partitioner == null) {
@@ -673,6 +676,7 @@ public class StreamGraph implements Pipeline {
                     exchangeMode,
                     intermediateDataSetId);
         } else {
+            //真正构建StreamEdge
             createActualEdge(
                     upStreamVertexID,
                     downStreamVertexID,
@@ -697,6 +701,7 @@ public class StreamGraph implements Pipeline {
 
         // If no partitioner was specified and the parallelism of upstream and downstream
         // operator matches use forward partitioning, use rebalance otherwise.
+        //未指定Partitioner的话 会为其选择forward或rebalance分区
         if (partitioner == null
                 && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
             partitioner =
@@ -708,6 +713,7 @@ public class StreamGraph implements Pipeline {
         }
 
         if (partitioner instanceof ForwardPartitioner) {
+            //健康检查 forward 分区 必须上下游并发度一致
             if (upstreamNode.getParallelism() != downstreamNode.getParallelism()) {
                 throw new UnsupportedOperationException(
                         "Forward partitioning does not allow "
@@ -735,6 +741,7 @@ public class StreamGraph implements Pipeline {
          */
         int uniqueId = getStreamEdges(upstreamNode.getId(), downstreamNode.getId()).size();
 
+        //创建StreamEdge
         StreamEdge edge =
                 new StreamEdge(
                         upstreamNode,
@@ -746,6 +753,7 @@ public class StreamGraph implements Pipeline {
                         uniqueId,
                         intermediateDataSetId);
 
+        //将该StreamEdge 添加到上游的输出，下游的输入
         getStreamNode(edge.getSourceId()).addOutEdge(edge);
         getStreamNode(edge.getTargetId()).addInEdge(edge);
     }

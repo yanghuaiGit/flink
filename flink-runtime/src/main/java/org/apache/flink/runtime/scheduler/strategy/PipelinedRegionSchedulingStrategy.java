@@ -284,6 +284,7 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 areRegionVerticesAllInCreatedState(region),
                 "BUG: trying to schedule a region which is not in CREATED state");
         scheduledRegions.add(region);
+        //分配 部署
         schedulerOperations.allocateSlotsAndDeploy(regionVerticesSorted.get(region));
     }
 

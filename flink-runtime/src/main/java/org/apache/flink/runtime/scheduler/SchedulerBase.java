@@ -202,6 +202,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.deploymentStateTimeMetrics =
                 new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
+        //todo 创建和保存ExecutionGraph
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         completedCheckpointStore,

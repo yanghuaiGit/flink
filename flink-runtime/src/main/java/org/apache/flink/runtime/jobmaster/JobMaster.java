@@ -342,6 +342,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
         this.jobStatusListener = new JobManagerJobStatusListener();
+        //executionGraph 在这里被创建出来
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,

@@ -315,6 +315,7 @@ public class StreamGraphGenerator {
 
         alreadyTransformed = new IdentityHashMap<>();
 
+        // 依次对用户代码算子进行转换
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
         }

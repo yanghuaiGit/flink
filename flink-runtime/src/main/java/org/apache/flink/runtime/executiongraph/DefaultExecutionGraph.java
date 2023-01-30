@@ -844,7 +844,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 tasks.size(),
                 intermediateResults.size());
 
+        //创建出ExecutionJobVertex
         attachJobVertices(verticesToAttach);
+        // 初始化每个 ExecutionJobVertex
         initializeJobVertices(verticesToInitialize);
 
         // the topology assigning should happen before notifying new vertices to failoverStrategy
@@ -905,6 +907,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),
                 coordinatorStore);
 
+        // 将创建的ExecutionJobVertex 和前面的IntermediateResult连接起来
         ejv.connectToPredecessors(this.intermediateResults);
 
         for (IntermediateResult res : ejv.getProducedDataSets()) {

@@ -46,6 +46,7 @@ public class EdgeManagerBuildUtil {
             IntermediateResult intermediateResult,
             DistributionPattern distributionPattern) {
 
+        //只有forward的方式的情况下，pattern才是pointwise的，否则都为alltoall
         switch (distributionPattern) {
             case POINTWISE:
                 connectPointwise(vertex.getTaskVertices(), intermediateResult);

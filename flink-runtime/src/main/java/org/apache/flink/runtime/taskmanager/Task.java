@@ -710,6 +710,7 @@ public class Task
             FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
             try {
                 // now load and instantiate the task's invokable code
+                //加载和实例化Task的可执行代码
                 invokable =
                         loadAndInstantiateInvokable(
                                 userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
@@ -911,6 +912,7 @@ public class Task
             taskManagerActions.updateTaskExecutionState(
                     new TaskExecutionState(executionId, ExecutionState.RUNNING));
 
+            //finalInvokable 即为Operator对象实例 比如StreamTask
             runWithSystemExitMonitoring(finalInvokable::invoke);
         } catch (Throwable throwable) {
             try {

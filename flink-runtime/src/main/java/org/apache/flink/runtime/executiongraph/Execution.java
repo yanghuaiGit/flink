@@ -567,6 +567,8 @@ public class Execution
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
+            //将intermediateResultPartition转为ResultPartition
+            //将ExecutionEdge转换成InputChannelDeploymentDescriptor 最终会在执行时转换成inputGate
             final TaskDeploymentDescriptor deployment =
                     TaskDeploymentDescriptorFactory.fromExecution(this)
                             .createDeploymentDescriptor(

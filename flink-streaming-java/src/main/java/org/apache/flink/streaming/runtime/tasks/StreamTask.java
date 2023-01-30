@@ -777,6 +777,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         // let the task do its work
         getEnvironment().getMetricGroup().getIOMetricGroup().markTaskStart();
+        //执行任务
         runMailboxLoop();
 
         // if this left the run() method cleanly despite the fact that this was canceled,

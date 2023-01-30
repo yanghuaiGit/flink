@@ -119,6 +119,7 @@ public class DefaultExecutionGraphBuilder {
         // create a new execution graph, if none exists so far
         final DefaultExecutionGraph executionGraph;
         try {
+            //如果不存在执行图，就创建一个新的执行图
             executionGraph =
                     new DefaultExecutionGraph(
                             jobInformation,
@@ -192,6 +193,7 @@ public class DefaultExecutionGraphBuilder {
                 (System.nanoTime() - initMasterStart) / 1_000_000);
 
         // topologically sort the job vertices and attach the graph to the existing one
+        // 对JobGraph进行拓扑排序 获取所有的jobVertex列表
         List<JobVertex> sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources();
         if (log.isDebugEnabled()) {
             log.debug(
@@ -200,6 +202,7 @@ public class DefaultExecutionGraphBuilder {
                     jobName,
                     jobId);
         }
+        //todo 核心逻辑，将拓扑排序过的jobGraph添加到executionGraph数据结构中
         executionGraph.attachJobGraph(sortedTopology);
 
         if (log.isDebugEnabled()) {

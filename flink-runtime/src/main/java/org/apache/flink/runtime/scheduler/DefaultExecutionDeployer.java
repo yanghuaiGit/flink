@@ -317,6 +317,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
     private void deployTaskSafe(final Execution execution) {
         try {
+            //部署执行图节点
             executionOperations.deploy(execution);
         } catch (Throwable e) {
             handleTaskDeploymentFailure(execution, e);

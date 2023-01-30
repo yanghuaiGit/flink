@@ -2189,11 +2189,14 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         checkNotNull(streamGraph, "StreamGraph cannot be null.");
         final PipelineExecutor executor = getPipelineExecutor();
 
+        //PipelineExecutor 执行生成的streamGraph
         CompletableFuture<JobClient> jobClientFuture =
                 executor.execute(streamGraph, configuration, userClassloader);
 
         try {
+            //通过jobClientFuture 获取JobClient 同步客户端
             JobClient jobClient = jobClientFuture.get();
+            //监听任务执行状态
             jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
             collectIterators.forEach(iterator -> iterator.setJobClient(jobClient));
             collectIterators.clear();
@@ -2209,7 +2212,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                     strippedException);
         }
     }
-
+ 
     /**
      * Getter of the {@link StreamGraph} of the streaming job. This call clears previously
      * registered {@link Transformation transformations}.
