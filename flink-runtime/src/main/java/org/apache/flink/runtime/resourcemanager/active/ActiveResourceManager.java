@@ -300,6 +300,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     // ------------------------------------------------------------------------
 
     private void requestNewWorker(WorkerResourceSpec workerResourceSpec) {
+        //Taskmanager 内存计算
         final TaskExecutorProcessSpec taskExecutorProcessSpec =
                 TaskExecutorProcessUtils.processSpecFromWorkerResourceSpec(
                         flinkConfig, workerResourceSpec);

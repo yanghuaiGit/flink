@@ -115,6 +115,7 @@ public abstract class Transformation<T> {
         return ID_COUNTER.incrementAndGet();
     }
 
+    //递增的一个id
     protected final int id;
 
     protected String name;

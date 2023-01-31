@@ -45,6 +45,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * @param <T> The type of the elements in this stream.
  */
 @Public
+//单一输出类型的DataStream
 public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
     /** Indicate this is a non-parallel operator and cannot set a non-1 degree of parallelism. * */

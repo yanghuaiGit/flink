@@ -1949,6 +1949,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         boolean isParallel = function instanceof ParallelSourceFunction;
 
+        // 很多算子代码是lambada表达式火鹤内部类 需要实现serializable接口，同时要求外部类也要实现，但是有时候可能外部类没有实现，所以会通过这个方法使得这个类能被序列化了
+        // 让一些不可序列化的function变为可以序列化了
         clean(function);
 
         final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
