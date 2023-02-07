@@ -81,7 +81,9 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     @Override
     protected void onStart() {
+        //启动jobGraphStore
         startServices();
+
 
         onGoingRecoveryOperation =
                 createDispatcherBasedOnRecoveredJobGraphsAndRecoveredDirtyJobResults();
@@ -126,11 +128,13 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         return dirtyJobsFuture
                 .thenApplyAsync(
                         dirtyJobs ->
+                                // //恢复job信息
                                 this.recoverJobsIfRunning(
                                         dirtyJobs.stream()
                                                 .map(JobResult::getJobId)
                                                 .collect(Collectors.toSet())),
                         ioExecutor)
+                // 两件事 1 创建Dispatcher 2 启动Dispatcher
                 .thenAcceptBoth(dirtyJobsFuture, this::createDispatcherIfRunning)
                 .handle(this::onErrorIfRunning);
     }
@@ -146,6 +150,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         final Collection<JobGraph> recoveredJobGraphs = new ArrayList<>();
 
         for (JobID jobId : jobIds) {
+            //只是恢复这个job信息 不是执行
             if (!recoveredDirtyJobResults.contains(jobId)) {
                 tryRecoverJob(jobId).ifPresent(recoveredJobGraphs::add);
             } else {
@@ -171,6 +176,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
     private Optional<JobGraph> tryRecoverJob(JobID jobId) {
         log.info("Trying to recover job with job id {}.", jobId);
         try {
+            // jobGraphStore 的实现 在ha集群中是基于zk实现的 意味着这个job的信息存储在zk中
             final JobGraph jobGraph = jobGraphStore.recoverJobGraph(jobId);
             if (jobGraph == null) {
                 log.info(

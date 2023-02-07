@@ -311,6 +311,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         log.info("Initializing job '{}' ({}).", jobName, jid);
 
+        //监听ResourceManager地址
         resourceManagerLeaderRetriever =
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
 
@@ -322,6 +323,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         getMainThreadExecutor(),
                         log);
 
+        //JobMaster内部会创建一个DefaultScheduler
         this.slotPoolService =
                 checkNotNull(slotPoolServiceSchedulerFactory)
                         .createSlotPoolService(
@@ -950,9 +952,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private void startJobExecution() throws Exception {
         validateRunsInMainThread();
 
+        /**
+         * 初始化一个上下文封装信息
+         */
         JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
         shuffleMaster.registerJob(context);
 
+        /**
+         * 启动hobMaster的一些服务
+         * heartBeat 心跳服务
+         * slotPool slot管理服务 内部两个心跳服务
+         * resourceManagerRetriver服务
+         */
         startJobMasterServices();
 
         log.info(

@@ -162,8 +162,11 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
 
     void resetHeartbeatTimeout(long heartbeatTimeout) {
         if (state.get() == State.RUNNING) {
+            //先取消超时任务
             cancelTimeout();
 
+            //既然更新了一次心跳 则需要重置心跳超时任务，超时就会执行这个run方法
+            //比如TaskExecutor超时了 resourceManager就会关闭这个task，同时做task的failover转移到另一个taskExecutor执行
             futureTimeout =
                     scheduledExecutor.schedule(this, heartbeatTimeout, TimeUnit.MILLISECONDS);
 

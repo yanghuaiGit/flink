@@ -284,7 +284,9 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 areRegionVerticesAllInCreatedState(region),
                 "BUG: trying to schedule a region which is not in CREATED state");
         scheduledRegions.add(region);
-        //分配 部署
+        //分配 部署 todo 这是 jobMaster 调度和部署的起点
+        // 1allocateSlots 申请这个Job所需要的所有Slot
+       // 2 Deploy 部署Task
         schedulerOperations.allocateSlotsAndDeploy(regionVerticesSorted.get(region));
     }
 

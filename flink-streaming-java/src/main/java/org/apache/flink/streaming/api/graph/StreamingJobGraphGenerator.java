@@ -218,6 +218,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private JobGraph createJobGraph() {
+        //条件判断
         preValidate();
         jobGraph.setJobType(streamGraph.getJobType());
 
@@ -236,6 +237,7 @@ public class StreamingJobGraphGenerator {
         }
 
         //todo 最重要的函数 生成JobVertex JobEdge等，并尽可能地将多个节点chain在一起
+        // operatorChain的构建
         setChaining(hashes, legacyHashes);
 
         //将每个Jobvertex的入边集合也序列化到该JobVertex的StreamConfig种(出边集合在setChaing的时候写入了)
@@ -624,6 +626,7 @@ public class StreamingJobGraphGenerator {
 
         // iterate over a copy of the values, because this map gets concurrently modified
         //从source开始建立nodeChains
+        // 如果当前Operator不能完成和之前的 Operator的chain操作 则单独创建一个，如果可以的，就先缓存起来，比如B和A可以chain，变成一个节点，但是后面还有C算子是否能继续chain起来呢，所以需要先缓存起来
         for (OperatorChainInfo info : initialEntryPoints) {
             //构建node chains 返回当前节点的物理出边 startNodeId != currentNodeId 说明CurrentNode是chain中的子节点
             createChain(
@@ -646,7 +649,7 @@ public class StreamingJobGraphGenerator {
             //过渡用的出边集合，用来生成最终的JobEdge 注意不包括chain 内部的边
             List<StreamEdge> transitiveOutEdges = new ArrayList<StreamEdge>();
 
-            //可以chain的边
+            //可以chain的边 其实就是StreamAge是否可以chain 如果可以chain则StreamNode就可以chain一起
             List<StreamEdge> chainableOutputs = new ArrayList<StreamEdge>();
             //不可以chain的边
             List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
@@ -655,6 +658,7 @@ public class StreamingJobGraphGenerator {
 
             //将当前节点的出边分成chainable 和 nonChainable两类
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
+                //判断是否可以chain
                 if (isChainable(outEdge, streamGraph)) {
                     chainableOutputs.add(outEdge);
                 } else {
@@ -683,7 +687,7 @@ public class StreamingJobGraphGenerator {
                         chainEntryPoints);
             }
 
-            //生成当前及诶单的显示名 如"keyed Aggregation ——>sink:unnamed"
+            //生成当前的显示名 如"keyed Aggregation ——>sink:unnamed"
             chainedNames.put(
                     currentNodeId,
                     createChainedName(
@@ -712,7 +716,7 @@ public class StreamingJobGraphGenerator {
                         .addOutputFormat(currentOperatorId, currentNode.getOutputFormat());
             }
 
-            //如果当前节点是起始节点，则直接创建JOobVertex，并放回StreamConfig，否则先创建一个空的StreamConfig
+            //如果当前节点是起始节点，则直接创建JobVertex，并放回StreamConfig，否则先创建一个空的StreamConfig
             StreamConfig config =
                     currentNodeId.equals(startNodeId)
                             ? createJobVertex(startNodeId, chainInfo)
@@ -1296,23 +1300,41 @@ public class StreamingJobGraphGenerator {
         }
     }
 
+    /**
+     * 当前节点和下游一个顶点之间的边
+     * @param edge
+     * @param streamGraph
+     * @return
+     */
     public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
         StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
+        /**
+         * 1 判断下游节点的入边只有一个，上游顶点的所有数据都输出给下游顶点 forward
+         */
         return downStreamVertex.getInEdges().size() == 1 && isChainableInput(edge, streamGraph);
     }
 
+    /**
+     * 是否可以chain的条件
+     * @param edge
+     * @param streamGraph
+     * @return
+     */
     private static boolean isChainableInput(StreamEdge edge, StreamGraph streamGraph) {
         StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
         StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
+        //上下游节点在同一个slot group中
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && arePartitionerAndExchangeModeChainable(
                         edge.getPartitioner(),
                         edge.getExchangeMode(),
                         streamGraph.getExecutionConfig().isDynamicGraph())
+                //并行度一致
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
+                //没有禁用chain
                 && streamGraph.isChainingEnabled())) {
 
             return false;
@@ -1334,10 +1356,12 @@ public class StreamingJobGraphGenerator {
             StreamPartitioner<?> partitioner,
             StreamExchangeMode exchangeMode,
             boolean isDynamicGraph) {
+        //两个节点间物理分区逻辑是forwardPartitioner
         if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
             checkState(isDynamicGraph);
             return true;
         } else if ((partitioner instanceof ForwardPartitioner)
+                //shuffle方式不能是批处理模式
                 && exchangeMode != StreamExchangeMode.BATCH) {
             return true;
         } else {

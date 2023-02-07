@@ -60,7 +60,7 @@ abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Tran
         final int transformationId = transformation.getId();
         final ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 
-        //添加StreamNode
+        //1 添加StreamNode
         streamGraph.addOperator(
                 transformationId,
                 slotSharingGroup,
@@ -88,8 +88,13 @@ abstract class AbstractOneInputTransformationTranslator<IN, OUT, OP extends Tran
                 "Expected exactly one input transformation but found "
                         + parentTransformations.size());
 
-        //添加StreamEdge
+        /**
+         * 2 添加StreamEdge
+         * 根据输入，生成对应的和上游顶点的边
+         * 一般来说就是一个输入 如果是join union等可能会调用多次
+         */
         for (Integer inputId : context.getStreamNodeIds(parentTransformations.get(0))) {
+            //生成边 并且维护关系，和上游顶点的关系
             streamGraph.addEdge(inputId, transformationId, 0);
         }
 

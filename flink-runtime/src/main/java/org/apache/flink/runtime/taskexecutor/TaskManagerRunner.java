@@ -130,6 +130,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
     private final CompletableFuture<Result> terminationFuture;
 
     @GuardedBy("lock")
+    /**
+     * Flink内部每一个重要的工作组件都有一个resourceId
+     * ResourceManager
+     * JobMaster
+     * TaskExecutor
+     */
     private DeterminismEnvelope<ResourceID> resourceId;
 
     /** Executor used to run future callbacks. */
@@ -242,6 +248,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             configuration, pluginManager);
 
             taskExecutorService =
+                    //是taskExecutor的封装
                     taskExecutorServiceFactory.createTaskExecutor(
                             this.configuration,
                             this.resourceId.unwrap(),
@@ -467,17 +474,23 @@ public class TaskManagerRunner implements FatalErrorHandler {
         return ConfigurationParserUtils.loadCommonConfiguration(
                 args, TaskManagerRunner.class.getSimpleName());
     }
-
     public static int runTaskManager(Configuration configuration, PluginManager pluginManager)
             throws Exception {
         final TaskManagerRunner taskManagerRunner;
 
+        /**
+         * TaskManagerRunner 逻辑上从节点的概念 代表了从节点的一切
+         * TaskExecutor 从节点上最为重要的一个工作组件： 管理slot 和接收task执行
+         * TaskExecutorService 是对TaskExecutor的包装，里面含有TaskManagerServices(从节点上的各种基础服务) Configuration
+         */
         try {
             taskManagerRunner =
                     new TaskManagerRunner(
                             configuration,
                             pluginManager,
+                            //创建TaskExecutorService 重要
                             TaskManagerRunner::createTaskExecutorService);
+            //启动taskManagerRunner 本质是TaskManagerServices基础服务的初始化 以及 taskExecutorService.start
             taskManagerRunner.start();
         } catch (Exception exception) {
             throw new FlinkException("Failed to start the TaskManagerRunner.", exception);
@@ -572,6 +585,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
         return TaskExecutorToServiceAdapter.createFor(taskExecutor);
     }
 
+    /**
+     * 创建TaskExecutor 和 TaskManagerServices
+     */
     public static TaskExecutor startTaskManager(
             Configuration configuration,
             ResourceID resourceID,
@@ -595,9 +611,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         String externalAddress = rpcService.getAddress();
 
+        //资源配置 内存 cpu等信息的配置
         final TaskExecutorResourceSpec taskExecutorResourceSpec =
                 TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
 
+        //配置信息
         TaskManagerServicesConfiguration taskManagerServicesConfiguration =
                 TaskManagerServicesConfiguration.fromConfiguration(
                         configuration,
@@ -619,6 +637,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         taskManagerServicesConfiguration.getNumIoThreads(),
                         new ExecutorThreadFactory("flink-taskexecutor-io"));
 
+        //TaskExecutor的各种基础服务
+        //从节点的所有相关的东西分为三部分
+        // 1 基础公共服务 rpc 心跳 ha服务
+        // 2 核心服务 io服务 shuffle服务 内存管理  TaskManagerServices
+        // 3 TaskExecutor 真正干活的
         TaskManagerServices taskManagerServices =
                 TaskManagerServices.fromConfiguration(
                         taskManagerServicesConfiguration,

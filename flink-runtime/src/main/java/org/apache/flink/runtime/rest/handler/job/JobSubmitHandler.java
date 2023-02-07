@@ -83,6 +83,11 @@ public final class JobSubmitHandler
             @Nonnull HandlerRequest<JobSubmitRequestBody> request,
             @Nonnull DispatcherGateway gateway)
             throws RestHandlerException {
+        //客户端提交过来的文件有很多
+        // JobGraph的文件
+        //jar 包
+        //依赖jat包
+
         final Collection<File> uploadedFiles = request.getUploadedFiles();
         final Map<String, Path> nameToFile =
                 uploadedFiles.stream()
@@ -108,18 +113,24 @@ public final class JobSubmitHandler
                     HttpResponseStatus.BAD_REQUEST);
         }
 
+        //反序列得到JobGraph
         CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
+        //得到jar
         Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
+        //得到依赖jar
         Collection<Tuple2<String, Path>> artifacts =
                 getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
+
+        //上传到BlobServer中
         CompletableFuture<JobGraph> finalizedJobGraphFuture =
                 uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts, configuration);
 
         CompletableFuture<Acknowledge> jobSubmissionFuture =
                 finalizedJobGraphFuture.thenCompose(
+                        //转交给Dispatcher
                         jobGraph -> gateway.submitJob(jobGraph, timeout));
 
         return jobSubmissionFuture.thenCombine(

@@ -112,6 +112,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  *       JobMaster} at the resource manager
  * </ul>
  */
+
+//是一个RPC工作节点
 public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         extends FencedRpcEndpoint<ResourceManagerId> implements ResourceManagerGateway {
 
@@ -250,14 +252,22 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
     }
 
+    //启动ResourceManager的一些服务 slotManager  JobLeaderIdService
     private void startResourceManagerServices() throws Exception {
         try {
+            // JobLeaderIdService 启动 jobMaster如果出现了一些异常 就回调JobLeaderIdActionsImpl
             jobLeaderIdService.start(new JobLeaderIdActionsImpl());
 
             registerMetrics();
 
+            //启动心跳服务
+            //HeartbeatServices 的初始化 和 启动 clusterEntrypoint启动的时候，会创建一些公共组件 其中心跳服务创建org.apache.flink.runtime.entrypoint.ClusterEntrypoint.createHeartbeatServices
+            //从节点TaskExecutor的启动和注册
             startHeartbeatServices();
 
+            //slotManager 启动
+            // 待定：启动2个定时任务，申请资源超时，从节点心跳超时 2个功能 现在是只有一个功能 申请资源超时，从节点心跳超时不在这里了
+            //2 个实现，1 声明式的(默认) 2 细粒度的，需要开关进行开启
             slotManager.start(
                     getFencingToken(),
                     getMainThreadExecutor(),
@@ -448,10 +458,18 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 ioExecutor);
     }
 
+    /**
+     * 主节点处理从节点的注册请求
+     * 1 先判断连接是否正确
+     * 2 是否已经注册过
+     * 3 完成注册
+     * 4 生成响应 返回给对方
+     */
     @Override
     public CompletableFuture<RegistrationResponse> registerTaskExecutor(
             final TaskExecutorRegistration taskExecutorRegistration, final Time timeout) {
 
+        //判断连接是否正常
         CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture =
                 getRpcService()
                         .connect(
@@ -468,6 +486,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         if (throwable != null) {
                             return new RegistrationResponse.Failure(throwable);
                         } else {
+                            //完成注册
                             return registerTaskExecutorInternal(
                                     taskExecutorGateway, taskExecutorRegistration);
                         }
@@ -960,6 +979,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     private RegistrationResponse registerTaskExecutorInternal(
             TaskExecutorGateway taskExecutorGateway,
             TaskExecutorRegistration taskExecutorRegistration) {
+        //是否有这个从节点的注册对象 如果有的话 这次就是重复注册
         ResourceID taskExecutorResourceId = taskExecutorRegistration.getResourceId();
         WorkerRegistration<WorkerType> oldRegistration =
                 taskExecutors.remove(taskExecutorResourceId);
@@ -970,6 +990,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     taskExecutorResourceId.getStringWithMetadata());
 
             // remove old task manager registration from slot manager
+            //注销 移除掉
             slotManager.unregisterTaskManager(
                     oldRegistration.getInstanceID(),
                     new ResourceManagerException(
@@ -978,6 +999,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                     taskExecutorResourceId.getStringWithMetadata())));
         }
 
+        //接下来就是完成注册
         final WorkerType newWorker = workerStarted(taskExecutorResourceId);
 
         String taskExecutorAddress = taskExecutorRegistration.getTaskExecutorAddress();
@@ -990,6 +1012,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             return new TaskExecutorRegistrationRejection(
                     "The ResourceManager does not recognize this TaskExecutor.");
         } else {
+            //生成一个注册信息对象  关于一个从节点的注册信息的抽闲有2个
+            /**
+             * 1 TaskExecutionRegistion
+             * 2 WorkerRegistration
+             * 这两个抽象其实是一样的  都是从节点的抽象，但是为了区分概念 所以主节点和从节点各自有一个抽象 实际表达的是一样的
+             */
             WorkerRegistration<WorkerType> registration =
                     new WorkerRegistration<>(
                             taskExecutorGateway,
@@ -1006,11 +1034,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     "Registering TaskManager with ResourceID {} ({}) at ResourceManager",
                     taskExecutorResourceId.getStringWithMetadata(),
                     taskExecutorAddress);
+            //完成注册
             taskExecutors.put(taskExecutorResourceId, registration);
 
+            // 从节点注册成功，则这个从节点就作为主节点的一个心跳目标对象
             taskManagerHeartbeatManager.monitorTarget(
                     taskExecutorResourceId, new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
+            //完成注册之后 构造一个对象 返回给从节点
             return new TaskExecutorRegistrationSuccess(
                     registration.getInstanceID(), resourceId, clusterInformation);
         }
@@ -1323,6 +1354,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         @Override
         public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
+            //这个代码是主节点执行的
             return taskExecutorGateway.heartbeatFromResourceManager(resourceID);
         }
     }
@@ -1330,6 +1362,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     private class ResourceActionsImpl implements ResourceActions {
 
         @Override
+        //释放资源
         public void releaseResource(InstanceID instanceId, Exception cause) {
             validateRunsInMainThread();
 
@@ -1337,6 +1370,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
+        //申请资源
         public boolean allocateResource(WorkerResourceSpec workerResourceSpec) {
             validateRunsInMainThread();
             return startNewWorker(workerResourceSpec);
@@ -1372,6 +1406,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     private class JobLeaderIdActionsImpl implements JobLeaderIdActions {
 
         @Override
+        //jobMaster地址发生了迁移
         public void jobLeaderLostLeadership(final JobID jobId, final JobMasterId oldJobMasterId) {
             runAsync(
                     new Runnable() {
@@ -1383,6 +1418,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
+        //jobMaster启动超时
         public void notifyJobTimeout(final JobID jobId, final UUID timeoutId) {
             runAsync(
                     new Runnable() {
@@ -1399,6 +1435,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
+        //jobMaster出现了异常
         public void handleError(Throwable error) {
             onFatalError(error);
         }

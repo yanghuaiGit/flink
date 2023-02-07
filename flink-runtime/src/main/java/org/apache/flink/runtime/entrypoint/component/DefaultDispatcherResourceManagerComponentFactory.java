@@ -100,8 +100,17 @@ public class DefaultDispatcherResourceManagerComponentFactory
         this.restEndpointFactory = restEndpointFactory;
     }
 
+    /**
+     *
+     * 1 先创建WebMonitorEndpoint
+     * 2 启动
+     * 3 创建 ResourceManager
+     * 4 创建 dispatcher
+     * 5 启动 dispatcher
+     * 6 启动 ResourceManager
+     */
     @Override
-    public DispatcherResourceManagerComponent create(
+    public DispatcherResourceManagerComponent  create(
             Configuration configuration,
             ResourceID resourceId,
             Executor ioExecutor,
@@ -164,7 +173,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                                     dispatcherGatewayRetriever,
                                     executor);
 
-            // web页面
+            // web服务
             webMonitorEndpoint =
                     restEndpointFactory.createRestEndpoint(
                             configuration,
@@ -177,6 +186,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             fatalErrorHandler);
 
             log.debug("Starting Dispatcher REST endpoint.");
+            //初始化了一大堆handler组件 启动了一个NettyServer，然后绑定这些Handler，这些Handler是通过一个router路由器管理的
             webMonitorEndpoint.start();
 
             final String hostname = RpcUtils.getHostname(rpcService);
@@ -225,6 +235,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             log.debug("Starting Dispatcher.");
             // 创建和启动disPatcher==》Dispatcher会创建和启动JobMaster
+            //dispatcher 主要做的4件事情 1 维护job状态 2 执行job的注册 3 恢复job的执行 4 为job拉起JobMaster
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
                             highAvailabilityServices.getDispatcherLeaderElectionService(),
@@ -238,15 +249,21 @@ public class DefaultDispatcherResourceManagerComponentFactory
             // 启动resourceManager
             resourceManagerService.start();
 
+            //启动监控
             resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
             dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);
 
+            //包含了各种工作组件的组件抽象
             return new DispatcherResourceManagerComponent(
                     dispatcherRunner,
                     resourceManagerService,
+                    // dispatcher的检索服务 监听服务
                     dispatcherLeaderRetrievalService,
+                    //resourceManager的检索服务 监听服务
                     resourceManagerRetrievalService,
+                    //启动了一个nettyServer
                     webMonitorEndpoint,
+                    //异常处理器
                     fatalErrorHandler,
                     dispatcherOperationCaches);
 
@@ -299,6 +316,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
     public static DefaultDispatcherResourceManagerComponentFactory createSessionComponentFactory(
             ResourceManagerFactory<?> resourceManagerFactory) {
         return new DefaultDispatcherResourceManagerComponentFactory(
+                //三个组件工厂
                 DefaultDispatcherRunnerFactory.createSessionRunner(
                         SessionDispatcherFactory.INSTANCE),
                 resourceManagerFactory,

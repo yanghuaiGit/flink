@@ -100,6 +100,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
         leaderLatchPath = ZooKeeperUtils.generateLeaderLatchPath(path);
         leaderLatch = new LeaderLatch(client, leaderLatchPath);
+        //注册一个监听是发生了变化
         this.cache =
                 ZooKeeperUtils.createTreeCache(
                         client,
@@ -108,6 +109,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
         running = true;
 
+        //选举成功了 调用listener的isLeader 否则是notLeader
         leaderLatch.addListener(this);
         leaderLatch.start();
 

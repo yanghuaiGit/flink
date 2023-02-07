@@ -27,6 +27,7 @@ package org.apache.flink.runtime.leaderelection;
  *
  * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is
  * no {@link LeaderElectionEventHandler} callbacks happen after {@link #close()}.
+ * 专门用来帮助选举的
  */
 public interface LeaderElectionDriver {
 

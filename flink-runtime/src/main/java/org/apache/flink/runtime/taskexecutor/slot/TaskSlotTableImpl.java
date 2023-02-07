@@ -158,6 +158,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         this.slotActions = Preconditions.checkNotNull(initialSlotActions);
         this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
 
+        //监听响应 回调notifyTimeout
         timerService.start(this);
 
         state = State.RUNNING;
@@ -619,6 +620,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         checkStarted();
 
         if (slotActions != null) {
+            //申请走了的slot超市了 在规定的时间内 jobMaster没有使用 进行超时处理，回收freeSlot
             slotActions.timeoutSlot(key, ticket);
         }
     }

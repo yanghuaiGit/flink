@@ -42,7 +42,13 @@ public class StreamEdge implements Serializable {
 
     private final String edgeId;
 
+    /**
+     * 输入
+     */
     private final int sourceId;
+    /**
+     * 输出
+     */
     private final int targetId;
 
     /**

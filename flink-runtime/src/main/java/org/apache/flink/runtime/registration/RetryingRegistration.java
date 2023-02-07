@@ -144,6 +144,7 @@ public abstract class RetryingRegistration<
             // trigger resolution of the target address to a callable gateway
             final CompletableFuture<G> rpcGatewayFuture;
 
+            //真正完成连接
             if (FencedRpcGateway.class.isAssignableFrom(targetType)) {
                 rpcGatewayFuture =
                         (CompletableFuture<G>)
@@ -160,6 +161,7 @@ public abstract class RetryingRegistration<
                     rpcGatewayFuture.thenAcceptAsync(
                             (G rpcGateway) -> {
                                 log.info("Resolved {} address, beginning registration", targetName);
+                                //注册
                                 register(
                                         rpcGateway,
                                         1,
@@ -219,6 +221,7 @@ public abstract class RetryingRegistration<
                     attempt,
                     timeoutMillis);
             CompletableFuture<RegistrationResponse> registrationFuture =
+                    //真正的完成注册  注册者向被注册者发送一个RPC请求，提交注册对象过去，被注册完成了注册处理之后 会生成一个注册响应 返回
                     invokeRegistration(gateway, fencingToken, timeoutMillis);
 
             // if the registration was successful, let the TaskExecutor know

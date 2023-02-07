@@ -209,10 +209,13 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
             synchronized (lock) {
                 verifyIsRunning();
 
+                //检查zk上个是否注册了该job
                 final R currentVersion = jobGraphStateHandleStore.exists(name);
 
+                //如果不存在就进行注册
                 if (!currentVersion.isExisting()) {
                     try {
+                        //向hdfs上上传 返回一个StateHandler 然后把StateHandler写入zk
                         jobGraphStateHandleStore.addAndLock(name, jobGraph);
 
                         addedJobGraphs.add(jobID);
@@ -223,6 +226,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                     }
                 } else if (addedJobGraphs.contains(jobID)) {
                     try {
+                        //存在就进行替换
                         jobGraphStateHandleStore.replace(name, currentVersion, jobGraph);
                         LOG.info("Updated {} in {}.", jobGraph, getClass().getSimpleName());
 

@@ -76,6 +76,8 @@ import java.util.Set;
  * <pre>{@code
  * router.notFound(My404Handler.class);
  * }</pre>
+ *  两层map 第一层是http类型以及对应的一个map get put delete 对应的一个map A
+ * A这个map存储的是 一个url地址 以及对应的执行handler
  */
 public class Router<T> {
     private final Map<HttpMethod, MethodlessRouter<T>> routers =

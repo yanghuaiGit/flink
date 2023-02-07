@@ -118,6 +118,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         LOG.info("Starting resource manager service.");
 
+        //等待grantLeadership的回调
         leaderElectionService.start(this);
     }
 
@@ -248,9 +249,11 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
     @GuardedBy("lock")
     private void startNewLeaderResourceManager(UUID newLeaderSessionID) throws Exception {
+        //万一之前有 就先关闭
         stopLeaderResourceManager();
 
         this.leaderSessionID = newLeaderSessionID;
+        //创建resourceManager
         this.leaderResourceManager =
                 resourceManagerFactory.createResourceManager(rmProcessContext, newLeaderSessionID);
 
@@ -356,7 +359,9 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
             Executor ioExecutor)
             throws ConfigurationException {
 
+        //这个是ResourceManager的封装
         return new ResourceManagerServiceImpl(
+                //resourceManagerFactory 是用来创建ResourceManager的
                 resourceManagerFactory,
                 resourceManagerFactory.createResourceManagerProcessContext(
                         configuration,

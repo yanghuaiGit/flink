@@ -187,6 +187,9 @@ public class ExecutionJobVertex
 
         // create all task vertices
         for (int i = 0; i < this.parallelismInfo.getParallelism(); i++) {
+            //一个ExecutionVertex 将来会运行一个Task，将来这个task可能运行一次不能成功，所以还有一个新的概念ExecutionAttempt
+            //execution就是ExecutionjobVertex每次尝试运行一个Task所需要的所有的信息的一个封装和载体
+            //当将来需要把ExecutionVertex对应的Task运行起来，则调用 currentExecution.deploy()
             ExecutionVertex vertex =
                     createExecutionVertex(
                             this,

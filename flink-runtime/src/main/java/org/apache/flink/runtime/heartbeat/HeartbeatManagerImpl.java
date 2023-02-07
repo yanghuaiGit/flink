@@ -150,6 +150,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                                 heartbeatTimeoutIntervalMs,
                                 failedRpcRequestsUntilUnreachable);
 
+
                 heartbeatTargets.put(resourceID, heartbeatMonitor);
 
                 // check if we have stopped in the meantime (concurrent stop operation)
@@ -210,6 +211,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
             log.debug("Received heartbeat from {}.", heartbeatOrigin);
             reportHeartbeat(heartbeatOrigin);
 
+            //心跳请求中肯呢个携带了 负载汇报 需要进行处理
             if (heartbeatPayload != null) {
                 heartbeatListener.reportPayload(heartbeatOrigin, heartbeatPayload);
             }
@@ -224,6 +226,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
         if (!stopped) {
             log.debug("Received heartbeat request from {}.", requestOrigin);
 
+            //做心跳的处理 其实就是一个登记  登记这次心跳时间
             final HeartbeatTarget<O> heartbeatTarget = reportHeartbeat(requestOrigin);
 
             if (heartbeatTarget != null) {

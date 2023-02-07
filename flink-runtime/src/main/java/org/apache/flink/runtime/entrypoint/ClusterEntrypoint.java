@@ -276,10 +276,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         return SecurityUtils.getInstalledContext();
     }
 
+    // 1 初始化主节点中要用到的一大堆各种基础服务 initializeServices
+    // 2 创建包含 创建三大组件 的工厂实例的一个组装工厂： 一个大工厂A里面包含了三个小工厂 A1 A2 A3 DispatcherResourceManagerComponentFactory
+    // 通过这三个小工厂 来创建主节点中的三大组件 ResourceManager WebMonitorEndpoint Dispatcher
     private void runCluster(Configuration configuration, PluginManager pluginManager)
             throws Exception {
         synchronized (lock) {
-            // 初始化akka blob
+            // 初始化akka blob rpcService leaderElectionService leaderRetrivalService
             initializeServices(configuration, pluginManager);
 
             // write host information into configuration
@@ -291,7 +294,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             createDispatcherResourceManagerComponentFactory(configuration);
 
             clusterComponent =
-                    // 创建和启动jobManager的组件 dispatcher 和 ResourceManager`和 jobMaster
+                    // 创建和启动jobManager的组件 dispatcher（dispatcher里再启动jobMaster） 和 ResourceManager 和 WebMonitorEndpoint
+                    //不同的clusterEntrypoint 生成的dispatcherResourceManagerComponentFactory里的三个工厂是不一样的
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
                             resourceId.unwrap(),
@@ -389,6 +393,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             haServices.createBlobStore());
             blobServer.start();
             configuration.setString(BlobServerOptions.PORT, String.valueOf(blobServer.getPort()));
+            //初始化两个参数  心跳间隔时间  和 心跳超时时间
             heartbeatServices = createHeartbeatServices(configuration);
             delegationTokenManager =
                     KerberosDelegationTokenManagerFactory.create(

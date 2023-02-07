@@ -87,6 +87,16 @@ public abstract class SimpleTransformationTranslator<OUT, T extends Transformati
      * @return The ids of the "last" {@link StreamNode StreamNodes} in the transformation graph
      *     corresponding to this transformation. These will be the nodes that a potential following
      *     transformation will need to connect to.
+     *     主要关注四个：
+     *      1 source
+     *      2 oneInout
+     *      3 twoInput
+     *      4 PartitionTransformationTranslator 虚拟算子
+     *
+     *      不同的transformation 对应的Task的启动类是不一样的
+     *      1 SourceStreamTask
+     *      2 oneInputStreamTask
+     *      3 TwoInputStreamTask
      */
     protected abstract Collection<Integer> translateForStreamingInternal(
             final T transformation, final Context context);

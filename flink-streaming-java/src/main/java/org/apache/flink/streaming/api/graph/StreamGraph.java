@@ -696,7 +696,9 @@ public class StreamGraph implements Pipeline {
             OutputTag outputTag,
             StreamExchangeMode exchangeMode,
             IntermediateDataSetID intermediateDataSetId) {
+        //上游节点
         StreamNode upstreamNode = getStreamNode(upStreamVertexID);
+        //当前节点
         StreamNode downstreamNode = getStreamNode(downStreamVertexID);
 
         // If no partitioner was specified and the parallelism of upstream and downstream
@@ -754,7 +756,9 @@ public class StreamGraph implements Pipeline {
                         intermediateDataSetId);
 
         //将该StreamEdge 添加到上游的输出，下游的输入
+        //上游顶点添加出边
         getStreamNode(edge.getSourceId()).addOutEdge(edge);
+        //上游顶点添加入边
         getStreamNode(edge.getTargetId()).addInEdge(edge);
     }
 

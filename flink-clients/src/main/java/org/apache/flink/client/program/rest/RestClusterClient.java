@@ -224,6 +224,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         if (restClient != null) {
             this.restClient = restClient;
         } else {
+            //里面实际上就是netty的一个客户端
             this.restClient = new RestClient(configuration, executorService);
         }
 
@@ -320,6 +321,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
+        //jobGraph对象序列化到本地文件中
         CompletableFuture<java.nio.file.Path> jobGraphFileFuture =
                 CompletableFuture.supplyAsync(
                         () -> {
@@ -347,10 +349,12 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                     new ArrayList<>(8);
                             Collection<FileUpload> filesToUpload = new ArrayList<>(8);
 
+                            //加到待上传文件集合
                             filesToUpload.add(
                                     new FileUpload(
                                             jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 
+                            //增加用户jar
                             for (Path jar : jobGraph.getUserJars()) {
                                 jarFileNames.add(jar.getName());
                                 filesToUpload.add(
@@ -359,6 +363,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                 RestConstants.CONTENT_TYPE_JAR));
                             }
 
+                            //处理依赖jar包
                             for (Map.Entry<String, DistributedCache.DistributedCacheEntry>
                                     artifacts : jobGraph.getUserArtifacts().entrySet()) {
                                 final Path artifactFilePath =
@@ -385,6 +390,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                 }
                             }
 
+                            //构建请求体，包含jobGraph文件名 jar文件名 依赖jar文件等
                             final JobSubmitRequestBody requestBody =
                                     new JobSubmitRequestBody(
                                             jobGraphFile.getFileName().toString(),
@@ -395,6 +401,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                     requestBody, Collections.unmodifiableCollection(filesToUpload));
                         });
 
+        //提交
         final CompletableFuture<JobSubmitResponseBody> submissionFuture =
                 requestFuture.thenCompose(
                         requestAndFileUploads -> {
@@ -935,6 +942,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                                 messageParameters,
                                                                 request,
                                                                 filesToUpload);
+                                                //服务端就是 JobSubmitHandler 接收
                                                 future.whenComplete(
                                                         (result, error) ->
                                                                 consumer.accept(

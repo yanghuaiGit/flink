@@ -96,17 +96,22 @@ public abstract class RegisteredRpcConnection<
     //  Life cycle
     // ------------------------------------------------------------------------
 
+    /**
+     * 这个是一个通用的注册机制
+     * 1 TAskExecutor 启动好了之后，需要向resourceManager注册
+     * 2 JobMaster 启动好了之后 需要向resourceManager注册
+     */
     public void start() {
         checkState(!closed, "The RPC connection is already closed");
         checkState(
                 !isConnected() && pendingRegistration == null,
                 "The RPC connection is already started");
 
-        //创建注册对象
+        //创建注册对象。初始化下里面的future，一些whenComplete的回调方法设置好，代表一次注册行为，在注册完成后进行回调
         final RetryingRegistration<F, G, S, R> newRegistration = createNewRegistration();
 
         if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {
-           //注册成功之后开始回调的方法
+           //开始注册流程  解析响应 生成注册结果。再根据回调结果回调上面createNewRegistration里的回调逻辑
             newRegistration.startRegistration();
         } else {
             // concurrent start operation
@@ -247,6 +252,7 @@ public abstract class RegisteredRpcConnection<
         CompletableFuture<RetryingRegistration.RetryingRegistrationResult<G, S, R>> future =
                 newRegistration.getFuture();
 
+        //构建了回调
         future.whenCompleteAsync(
                 (RetryingRegistration.RetryingRegistrationResult<G, S, R> result,
                         Throwable failure) -> {

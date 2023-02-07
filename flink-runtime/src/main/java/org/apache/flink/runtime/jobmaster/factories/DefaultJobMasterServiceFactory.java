@@ -125,6 +125,7 @@ public class DefaultJobMasterServiceFactory implements JobMasterServiceFactory {
                                 jobMasterConfiguration.getConfiguration()),
                         initializationTimestamp);
 
+        //回调onStart方法
         jobMaster.start();
 
         return jobMaster;

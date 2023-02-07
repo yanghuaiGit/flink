@@ -45,6 +45,8 @@ import java.util.concurrent.Executor;
  *   <li>Persistence for the BLOB store
  *   <li>Registry that marks a job's status
  *   <li>Naming of RPC endpoints
+ *   本质工作有点脱离HA的实际概念，其实类似于一种登记工作，因为一般是没有多线程进行竞争的
+ *   一些从节点是需要知道主节点的信息的 所以是需要登记的
  * </ul>
  */
 public interface HighAvailabilityServices

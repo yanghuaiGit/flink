@@ -92,6 +92,9 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
     public ResourceManager<T> createResourceManager(
             ResourceManagerProcessContext context, UUID leaderSessionId) throws Exception {
 
+        //resourceManager 的各个基础服务
+        // slotManager 用来管理整个集群的slot资源的
+        // JobLeaderIdService 管理JobMaster的
         final ResourceManagerRuntimeServices resourceManagerRuntimeServices =
                 createResourceManagerRuntimeServices(
                         context.getRmRuntimeServicesConfig(),

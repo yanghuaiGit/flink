@@ -81,6 +81,11 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
     @Override
     public void run() {
         if (!stopped) {
+            /**
+             * ResourceManager  给所有注册成功的从节点TaskExecutor 发送requestHeartbeat这个心跳RPC请求
+             * ResourceManager 给所有注册成功的JobMaster 发送requestHeartbeat这个心跳RPC请求
+             * JobMaster给所有注册成功的TaskExecutor发送requestHeartbeat这个心跳RPC请求
+             */
             log.debug("Trigger heartbeat request.");
             for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets().values()) {
                 requestHeartbeat(heartbeatMonitor);
@@ -91,6 +96,10 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
     }
 
     private void requestHeartbeat(HeartbeatMonitor<O> heartbeatMonitor) {
+        //每个角色注册的时候 会在对应的管理组件中 生成一个HeartbeatTarget对象
+        //TaskExecutor 到ResourceManager注册成功，则会生成一个heartbeatTarget
+        //TaskExecutor 到JobMaster注册成功
+        //JobMaster到ResourceManager注册成功
         O payload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
         final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 

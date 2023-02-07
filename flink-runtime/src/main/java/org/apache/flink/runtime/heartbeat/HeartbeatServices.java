@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 /**
  * HeartbeatServices gives access to all services needed for heartbeating. This includes the
  * creation of heartbeat receivers and heartbeat senders.
+ * 内部2个方法 创建 心跳的发送类 以及一个管理类
  */
 public class HeartbeatServices {
 
@@ -130,6 +131,8 @@ public class HeartbeatServices {
         int failedRpcRequestsUntilUnreachable =
                 configuration.get(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD);
 
+        //具体的心跳组件 就是通过这个 服务对象创建出来的  HeartbeatManager 心跳接受方 和 HeartbeatManagerSender 心跳发送方
+        //Flink集群中  有三个组件 两两都有心跳 resourceManager jobMaster TaskExecutor
         return new HeartbeatServices(
                 heartbeatInterval, heartbeatTimeout, failedRpcRequestsUntilUnreachable);
     }

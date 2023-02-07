@@ -176,14 +176,17 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     protected void initializeInternal() throws Exception {
         final YarnContainerEventHandler yarnContainerEventHandler = new YarnContainerEventHandler();
         try {
+            //创建yarn的rm客户端
             resourceManagerClient =
                     yarnResourceManagerClientFactory.createResourceManagerClient(
                             yarnHeartbeatIntervalMillis, yarnContainerEventHandler);
             resourceManagerClient.init(yarnConfig);
             resourceManagerClient.start();
 
+            //注册applicationMaster，其实也包含container申请在里面 进行资源的管理操作
             final RegisterApplicationMasterResponse registerApplicationMasterResponse =
                     registerApplicationMaster();
+            //处理Container申请的响应，如果申请到了，就启动从节点TaskManage，然后用来启动JobManager 和 TaskManager，一个Container启动JobManager，其余的Container启动TaskManager， 待定(感觉这儿只有TaskManager，jobManager当前环境就是jobManager在启动过程中了啊)
             getContainersFromPreviousAttempts(registerApplicationMasterResponse);
             taskExecutorProcessSpecContainerResourcePriorityAdapter =
                     new TaskExecutorProcessSpecContainerResourcePriorityAdapter(

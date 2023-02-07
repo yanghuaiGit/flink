@@ -284,14 +284,17 @@ public class TaskManagerServices {
         final IOManager ioManager =
                 new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
+
         final ShuffleEnvironment<?, ?> shuffleEnvironment =
                 createShuffleEnvironment(
                         taskManagerServicesConfiguration,
                         taskEventDispatcher,
                         taskManagerMetricGroup,
                         ioExecutor);
+        //其实启动内部的netty服务端和netty的客户端
         final int listeningDataPort = shuffleEnvironment.start();
 
+        //状态存储服务
         final KvStateService kvStateService =
                 KvStateService.fromConfiguration(taskManagerServicesConfiguration);
         kvStateService.start();
@@ -307,18 +310,27 @@ public class TaskManagerServices {
                                 : listeningDataPort,
                         taskManagerServicesConfiguration.getNodeId());
 
+        //广播服务
         final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
+        //TaskExecutor 中最为重要的一个组件 管理slot和task
+        //从节点的所有资源 按照numberOfSlot全部均分
         final TaskSlotTable<Task> taskSlotTable =
                 createTaskSlotTable(
+                        //总slot数
                         taskManagerServicesConfiguration.getNumberOfSlots(),
+                        //从节点资源配置
                         taskManagerServicesConfiguration.getTaskExecutorResourceSpec(),
                         taskManagerServicesConfiguration.getTimerServiceShutdownTimeout(),
                         taskManagerServicesConfiguration.getPageSize(),
                         ioExecutor);
 
+        //Job登记表
         final JobTable jobTable = DefaultJobTable.create();
 
+        /**
+         * 管理JobMaster的
+         */
         final JobLeaderService jobLeaderService =
                 new DefaultJobLeaderService(
                         unresolvedTaskManagerLocation,

@@ -72,12 +72,14 @@ public final class FlinkPipelineTranslationUtil {
 
     private static FlinkPipelineTranslator getPipelineTranslator(
             ClassLoader userClassloader, Pipeline pipeline) {
+        //批处理翻译器
         PlanTranslator planTranslator = new PlanTranslator();
 
         if (planTranslator.canTranslate(pipeline)) {
             return planTranslator;
         }
 
+        //流处理翻译器
         StreamGraphTranslator streamGraphTranslator = new StreamGraphTranslator(userClassloader);
 
         if (streamGraphTranslator.canTranslate(pipeline)) {

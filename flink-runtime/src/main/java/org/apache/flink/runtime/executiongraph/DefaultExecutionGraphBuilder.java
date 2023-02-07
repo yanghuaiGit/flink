@@ -174,6 +174,7 @@ public class DefaultExecutionGraphBuilder {
             }
 
             try {
+                //回调InitializeOnMaster 接口方法
                 vertex.initializeOnMaster(
                         new SimpleInitializeOnMasterContext(
                                 classLoader,
@@ -202,7 +203,7 @@ public class DefaultExecutionGraphBuilder {
                     jobName,
                     jobId);
         }
-        //todo 核心逻辑，将拓扑排序过的jobGraph添加到executionGraph数据结构中
+        //todo 核心逻辑，将拓扑排序过的jobGraph添加到executionGraph数据结构中  真正的做转化的地方
         executionGraph.attachJobGraph(sortedTopology);
 
         if (log.isDebugEnabled()) {

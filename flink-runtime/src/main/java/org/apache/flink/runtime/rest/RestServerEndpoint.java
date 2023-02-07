@@ -174,9 +174,12 @@ public abstract class RestServerEndpoint implements RestService {
 
             log.info("Starting rest endpoint.");
 
+            //两层map 第一层是http类型以及对应的一个map get put delete 对应的一个map A
+            // A这个map存储的是 一个url地址 以及对应的执行handler
             final Router router = new Router();
             final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
+            //初始化各种handler 有一个独特的org.apache.flink.runtime.rest.handler.job.JobSubmitHandler处理任务提交的逻辑
             handlers = initializeHandlers(restAddressFuture);
 
             /* sort the handlers such that they are ordered the following:
@@ -186,8 +189,10 @@ public abstract class RestServerEndpoint implements RestService {
              * /jobs/:jobid/config
              * /:*
              */
+            //排序
             Collections.sort(handlers, RestHandlerUrlComparator.INSTANCE);
 
+            //去重
             checkAllEndpointsAndHandlersAreUnique(handlers);
             handlers.forEach(handler -> registerHandler(router, handler, log));
 
@@ -254,6 +259,9 @@ public abstract class RestServerEndpoint implements RestService {
                 throw new IllegalArgumentException(
                         "Invalid port range definition: " + restBindPortRange);
             }
+
+            //这个端口是不固定的，是一个动态端口 比如4444-555555之间，既然端口不固定，客户端怎么知道服务端的端口呢，这个信息会注册到ZK中
+            // ResourceManager 和 Dispatcher WebMonitorEndpoint都是这么干的
 
             int chosenPort = 0;
             while (portsIterator.hasNext()) {

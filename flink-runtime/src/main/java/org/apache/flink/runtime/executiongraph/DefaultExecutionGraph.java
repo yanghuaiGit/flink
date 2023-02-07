@@ -888,6 +888,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private void initializeJobVertices(List<JobVertex> topologicallySorted) throws JobException {
         final long createTimestamp = System.currentTimeMillis();
 
+        // 一个ExecutionJobVertex 依据并行度生成一个一个的ExecutionVertex
+        //一个jobVertex映射为一个ExecutionJobVertex
         for (JobVertex jobVertex : topologicallySorted) {
             final ExecutionJobVertex ejv = tasks.get(jobVertex.getID());
             initializeJobVertex(ejv, createTimestamp);
@@ -900,6 +902,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         checkNotNull(ejv);
 
+        //每个executionJobVertex 根据并行度创建对应的executionVertex
         ejv.initialize(
                 executionHistorySizeLimit,
                 rpcTimeout,
@@ -908,6 +911,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 coordinatorStore);
 
         // 将创建的ExecutionJobVertex 和前面的IntermediateResult连接起来
+        // 完成上下游 ExecutionVertex的链接的边的关系
         ejv.connectToPredecessors(this.intermediateResults);
 
         for (IntermediateResult res : ejv.getProducedDataSets()) {

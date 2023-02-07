@@ -177,9 +177,11 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
                     "The state is marked for deletion and, therefore, should be deletable.");
         }
 
+        //jobGraph写到hdfs里
         final RetrievableStateHandle<T> storeHandle = storage.store(state);
         final byte[] serializedStoreHandle = serializeOrDiscard(storeHandle);
         try {
+            //写到zk里
             writeStoreHandleTransactionally(path, serializedStoreHandle);
             return storeHandle;
         } catch (KeeperException.NodeExistsException e) {

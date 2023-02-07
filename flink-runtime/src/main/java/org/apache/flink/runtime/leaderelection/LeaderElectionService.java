@@ -41,6 +41,7 @@ public interface LeaderElectionService {
      *
      * @param contender LeaderContender which applies for the leadership
      * @throws Exception
+     * 启动选举，如果选举成功 回调LeaderContender的grantLeadership方法
      */
     void start(LeaderContender contender) throws Exception;
 

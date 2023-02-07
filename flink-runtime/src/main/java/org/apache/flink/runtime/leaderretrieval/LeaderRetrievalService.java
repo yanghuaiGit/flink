@@ -36,6 +36,7 @@ public interface LeaderRetrievalService {
      *
      * @param listener The leader retrieval listener which will be notified about new leaders.
      * @throws Exception
+     * 启动监听之后回调 LeaderRetrievalListener的notifyLeaderAddress
      */
     void start(LeaderRetrievalListener listener) throws Exception;
 

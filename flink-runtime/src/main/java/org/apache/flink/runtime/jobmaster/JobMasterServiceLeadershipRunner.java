@@ -164,6 +164,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @Override
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
+        //回调grantLeadership方法
         leaderElectionService.start(this);
     }
 
@@ -274,6 +275,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
             if (jobResultStore.hasJobResultEntry(getJobID())) {
                 jobAlreadyDone();
             } else {
+                //创建一个新的JobMasterServiceProcess
+                //  1 创建JobMaster 在里面会创建Scheduler，将jobgraph转为ExecutionGraph
+                //2 启动jobMaster
                 createNewJobMasterServiceProcess(leaderSessionId);
             }
         } catch (IOException e) {
@@ -306,7 +310,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                 "Create new JobMasterServiceProcess because we were granted leadership under {}.",
                 leaderSessionId);
 
-        //创建jobmaster`
+        //创建jobMaster`
         jobMasterServiceProcess = jobMasterServiceProcessFactory.create(leaderSessionId);
 
         forwardIfValidLeader(

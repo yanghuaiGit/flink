@@ -305,9 +305,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         }
 
         startCleanupRetries();
-        //启动jobMaster
+        //启动jobMaster  执行之前从zk中拿到的未执行完毕的job的jobGraph信息
         startRecoveredJobs();
 
+        //用来进行rpc通信的
         this.dispatcherBootstrap =
                 this.dispatcherBootstrapFactory.create(
                         getSelfGateway(DispatcherGateway.class),
@@ -352,6 +353,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private void runRecoveredJob(final JobGraph recoveredJob) {
         checkNotNull(recoveredJob);
         try {
+            //创建jobMaster 然后启动job 负责jobGraph的持久化，为了宕机恢复
             runJob(createJobMasterRunner(recoveredJob), ExecutionType.RECOVERY);
         } catch (Throwable throwable) {
             onFatalError(
@@ -427,12 +429,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     // RPCs
     // ------------------------------------------------------
 
+    /**
+     * 到此为止 主节点已经接收到了Job和Job的相关信息
+     * 接下来 为这个Job启动JobMaster
+     *  1 JobGraph构造成ExecutionGraph
+     *  2 向ResourceManager申请资源
+     *  3 部署Task到TaskExecutor上执行
+     */
     @Override
     public CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, Time timeout) {
         log.info(
                 "Received JobGraph submission '{}' ({}).", jobGraph.getName(), jobGraph.getJobID());
 
         try {
+            //提交过 就直接抛出异常
             if (isDuplicateJob(jobGraph.getJobID())) {
                 if (isInGloballyTerminalState(jobGraph.getJobID())) {
                     log.warn(
@@ -565,14 +575,24 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
+        //jobGraph持久化到hdfs 返回一个StateHandler
         jobGraphWriter.putJobGraph(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
     }
 
+    /**
+     * 其实就是 jobMaster，JobManagerRunner 里面就是封装了 JobMaster
+     * JobMaster 是一个rpcEndPoint
+     * JobMaster内部工作组件很多
+     *
+     * 初始化之后 去监控得到ResourceManager 的地址 然后连接到ResourceManager 做注册 和 心跳
+     * 做注册
+     */
     private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {
         Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(jobGraph.getJobID()));
         return jobManagerRunnerFactory.createJobManagerRunner(
                 jobGraph,
+                //下述参数 就是 主节点 中的基础服务
                 configuration,
                 getRpcService(),
                 highAvailabilityServices,

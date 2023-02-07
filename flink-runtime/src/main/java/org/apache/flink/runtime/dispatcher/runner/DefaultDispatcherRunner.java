@@ -221,6 +221,8 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         final DefaultDispatcherRunner dispatcherRunner =
                 new DefaultDispatcherRunner(
                         leaderElectionService, fatalErrorHandler, dispatcherLeaderProcessFactory);
+        //被包装了 提供了生命周期管理，其实就是在构造函数里进行了dispatcher的选举，这个是因为 前面其他组件 如ResourceManager是因为其有一个start方法，在这里进行选举的触发的
+        //dispatcher可能一开始没有这个接口进行生命周期的管理 所以就用了这个DispatcherRunnerLeaderElectionLifecycleManager来进行管理触发
         return DispatcherRunnerLeaderElectionLifecycleManager.createFor(
                 dispatcherRunner, leaderElectionService);
     }

@@ -59,12 +59,14 @@ import java.util.concurrent.Executor;
  *      |                 |                    /latest-2
  *      |                 |       /checkpoint_id_counter
  * </pre>
+ * 存储的路径在ZooKeeperUtils类常量类里
  */
 public class ZooKeeperMultipleComponentLeaderElectionHaServices
         extends AbstractZooKeeperHaServices {
 
     private final Object lock = new Object();
 
+    //zk的客户端，提供了丰富的功能
     private final CuratorFramework leaderNamespacedCuratorFramework;
 
     private final FatalErrorHandler fatalErrorHandler;
@@ -88,6 +90,7 @@ public class ZooKeeperMultipleComponentLeaderElectionHaServices
     }
 
     @Override
+    // 4个组件会调用这个方法 ResourceManager Dispatcher webMonitorEndpoint JobMaster
     protected LeaderElectionService createLeaderElectionService(String leaderName) {
         return new DefaultLeaderElectionService(
                 getOrInitializeSingleLeaderElectionService().createDriverFactory(leaderName));
