@@ -168,6 +168,7 @@ public class ResultPartitionFactory {
                                     i, configuredNetworkBuffersPerChannel, pipelinedPartition);
                 } else {
                     subpartitions[i] =
+                            // 构建PipelinedSubpartition
                             new PipelinedSubpartition(
                                     i, configuredNetworkBuffersPerChannel, pipelinedPartition);
                 }

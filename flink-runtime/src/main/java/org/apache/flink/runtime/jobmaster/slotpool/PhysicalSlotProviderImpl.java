@@ -52,6 +52,10 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
         slotPool.disableBatchSlotRequestTimeoutCheck();
     }
 
+    /**
+     * 先从slotPool中申请可用的 如果没有可用的 则发送请求给ResourceManager申请一个新的
+     *
+     */
     @Override
     public CompletableFuture<PhysicalSlotRequest.Result> allocatePhysicalSlot(
             PhysicalSlotRequest physicalSlotRequest) {
@@ -64,6 +68,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                 slotRequestId,
                 resourceProfile);
 
+        //从slotPool里尝试获取可用的slot
         Optional<PhysicalSlot> availablePhysicalSlot =
                 tryAllocateFromAvailable(slotRequestId, slotProfile);
 
@@ -73,6 +78,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                         .map(CompletableFuture::completedFuture)
                         .orElseGet(
                                 () ->
+                                        //发送RPC请求给ResourceManager` 申请新的slot
                                         requestNewSlot(
                                                 slotRequestId,
                                                 resourceProfile,

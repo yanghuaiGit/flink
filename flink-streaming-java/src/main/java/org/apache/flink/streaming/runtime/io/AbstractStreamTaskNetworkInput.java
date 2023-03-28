@@ -89,6 +89,7 @@ public abstract class AbstractStreamTaskNetworkInput<
 
         while (true) {
             // get the stream element from the deserializer
+            //在下面获取到数据之后会放入 currentRecordDeserializer ，所以有数据处理的话 currentRecordDeserializer 是不会为空的
             if (currentRecordDeserializer != null) {
                 RecordDeserializer.DeserializationResult result;
                 try {
@@ -102,17 +103,20 @@ public abstract class AbstractStreamTaskNetworkInput<
                 }
 
                 if (result.isFullRecord()) {
+                    //处理数据
                     processElement(deserializationDelegate.getInstance(), output);
                     return DataInputStatus.MORE_AVAILABLE;
                 }
             }
 
+            //从inputGate里取拿数据
             Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
             if (bufferOrEvent.isPresent()) {
                 // return to the mailbox after receiving a checkpoint barrier to avoid processing of
                 // data after the barrier before checkpoint is performed for unaligned checkpoint
                 // mode
                 if (bufferOrEvent.get().isBuffer()) {
+                    //处理Buffer 主要数据的序列化 将数据放入 currentRecordDeserializer
                     processBuffer(bufferOrEvent.get());
                 } else {
                     return processEvent(bufferOrEvent.get());
@@ -131,6 +135,7 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
         if (recordOrMark.isRecord()) {
+            //处理数据 org.apache.flink.streaming.runtime.tasks.OneInputStreamTask.StreamTaskNetworkOutput.emitRecord
             output.emitRecord(recordOrMark.asRecord());
         } else if (recordOrMark.isWatermark()) {
             statusWatermarkValve.inputWatermark(

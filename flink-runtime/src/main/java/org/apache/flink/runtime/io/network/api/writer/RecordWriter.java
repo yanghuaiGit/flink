@@ -107,6 +107,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
         targetPartition.emitRecord(serializeRecord(serializer, record), targetSubpartition);
 
         if (flushAlways) {
+            //这个就是网络写出了
             targetPartition.flush(targetSubpartition);
         }
     }

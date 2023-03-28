@@ -116,6 +116,8 @@ public class NettyShuffleServiceFactory
             int numberOfSlots,
             String[] tmpDirPaths) {
         NettyConfig nettyConfig = config.nettyConfig();
+
+        //todo
         ConnectionManager connectionManager =
                 nettyConfig != null
                         ? new NettyConnectionManager(

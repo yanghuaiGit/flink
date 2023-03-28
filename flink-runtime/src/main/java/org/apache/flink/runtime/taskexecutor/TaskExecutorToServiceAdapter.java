@@ -34,7 +34,7 @@ public class TaskExecutorToServiceAdapter implements TaskManagerRunner.TaskExecu
 
     @Override
     public void start() {
-        //最终回调 onStart()方法
+        //最终回调 onStart()方法  takexecutor是一个rpcEndpoint，然后跳转到taskExecutor的onStart方法
         taskExecutor.start();
     }
 

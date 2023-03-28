@@ -109,9 +109,11 @@ public class EdgeManagerBuildUtil {
     private static void connectPointwise(
             ExecutionVertex[] taskVertices, IntermediateResult intermediateResult) {
 
+        //获取上下游并行度
         final int sourceCount = intermediateResult.getPartitions().length;
         final int targetCount = taskVertices.length;
 
+        //如果并行度一样
         if (sourceCount == targetCount) {
             for (int i = 0; i < sourceCount; i++) {
                 ExecutionVertex executionVertex = taskVertices[i];
@@ -132,6 +134,7 @@ public class EdgeManagerBuildUtil {
             for (int index = 0; index < targetCount; index++) {
 
                 ExecutionVertex executionVertex = taskVertices[index];
+                //给IntermediateResultPartition 添加消费者 executionVertex 消费者组
                 ConsumerVertexGroup consumerVertexGroup =
                         ConsumerVertexGroup.fromSingleVertex(executionVertex.getID());
 
@@ -148,9 +151,11 @@ public class EdgeManagerBuildUtil {
                     consumedPartitions.add(partition.getPartitionId());
                 }
 
+                //getexecutionVertex添加IntermediateResultPartition  消费者组
                 ConsumedPartitionGroup consumedPartitionGroup =
                         createAndRegisterConsumedPartitionGroupToEdgeManager(
                                 consumerVertexGroup.size(), consumedPartitions, intermediateResult);
+                //登记
                 executionVertex.addConsumedPartitionGroup(consumedPartitionGroup);
             }
         } else {

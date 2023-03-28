@@ -117,6 +117,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                         .map(ExecutionAttemptID::getExecutionVertexId)
                         .collect(Collectors.toList());
 
+        //申请物理slot
         return allocateSlotsForVertices(vertexIds).stream()
                 .map(
                         vertexAssignment ->
@@ -162,6 +163,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                                         slotSharingStrategy::getExecutionSlotSharingGroup));
         Map<ExecutionSlotSharingGroup, SharedSlot> slots =
                 executionsByGroup.keySet().stream()
+                        //申请物理slot
                         .map(group -> getOrAllocateSharedSlot(group, sharedSlotProfileRetriever))
                         .collect(
                                 Collectors.toMap(
@@ -238,14 +240,17 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                             sharedSlotProfileRetriever.getSlotProfile(
                                     group, physicalSlotResourceProfile);
                     PhysicalSlotRequest physicalSlotRequest =
+                            //构建一个物理slot的请求对象
                             new PhysicalSlotRequest(
                                     physicalSlotRequestId,
                                     slotProfile,
                                     slotWillBeOccupiedIndefinitely);
                     CompletableFuture<PhysicalSlot> physicalSlotFuture =
+                            //发送请求 申请slot 这个需要等待一段时间的
                             slotProvider
                                     .allocatePhysicalSlot(physicalSlotRequest)
                                     .thenApply(PhysicalSlotRequest.Result::getPhysicalSlot);
+                    //其实就是封装了 physicalSlotFuture
                     return new SharedSlot(
                             physicalSlotRequestId,
                             physicalSlotResourceProfile,

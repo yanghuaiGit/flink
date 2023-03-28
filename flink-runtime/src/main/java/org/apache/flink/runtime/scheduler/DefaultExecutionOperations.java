@@ -29,6 +29,9 @@ public class DefaultExecutionOperations implements ExecutionOperations {
 
     @Override
     public void deploy(Execution execution) throws JobException {
+        // execution包含了这个Task运行时所需要的各种信息 上游  下游 operator中的UserFunction 在最开始的时候，构造StreaGraph的时候，每个顶点都赋予了一个启动类，启动类TaskInvokable
+        //jar包 依赖jar包在这个对象中吗 不是的，在blobServer里面
+        //Task初始化和启动 14个动作 其中的一个动作 就是从BlobServer下载Job和Task的相关信息和jar等
         execution.deploy();
     }
 

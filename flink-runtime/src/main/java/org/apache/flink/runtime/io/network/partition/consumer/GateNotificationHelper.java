@@ -55,6 +55,7 @@ class GateNotificationHelper implements AutoCloseable {
      * Must be called under lock to ensure integrity of availabilityHelper and allow notification.
      */
     public void notifyDataAvailable() {
+        //去找availabilityMonitor.wait() availabilityMonitor = inputChannelsWithData
         availabilityMonitor.notifyAll();
         toNotify = inputGate.availabilityHelper.getUnavailableToResetAvailable();
     }

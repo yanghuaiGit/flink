@@ -689,6 +689,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             flushRequested = buffers.size() > 1 || isDataAvailableInUnfinishedBuffer;
         }
         if (notifyDataAvailable) {
+            //通知下游有数据可用 内部实现就是把数据写给下游
             notifyDataAvailable();
         }
     }

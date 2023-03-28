@@ -108,13 +108,15 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     @Override
     protected void onStart(ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.componentMainThreadExecutor = componentMainThreadExecutor;
-
+        //注册了Listener,当申请的资源到位了 则回调newSlotsAreAvailable
         getDeclarativeSlotPool().registerNewSlotsListener(this::newSlotsAreAvailable);
 
+        //申请到的slot 如果闲置超过多少时间没用就会回收 50s
         componentMainThreadExecutor.schedule(
                 this::checkIdleSlotTimeout,
                 idleSlotTimeout.toMilliseconds(),
                 TimeUnit.MILLISECONDS);
+        //检查申请slot是否超时  周期性检测pendingRequest 请求集合中的请求是否有超时 5分钟
         componentMainThreadExecutor.schedule(
                 this::checkBatchSlotTimeout,
                 batchSlotTimeout.toMilliseconds(),
@@ -200,9 +202,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     @VisibleForTesting
     void newSlotsAreAvailable(Collection<? extends PhysicalSlot> newSlots) {
+        //找出能满足资源申请 匹配的PendingRequest
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
                         newSlots, pendingRequests.values());
+
 
         for (RequestSlotMatchingStrategy.RequestSlotMatch match : requestSlotMatches) {
             final PendingRequest pendingRequest = match.getPendingRequest();
@@ -227,6 +231,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             final PendingRequest pendingRequest = requestSlotMatch.getPendingRequest();
             final PhysicalSlot slot = requestSlotMatch.getSlot();
 
+            //fulfill 申请资源结束
             Preconditions.checkState(
                     pendingRequest.fulfill(slot), "Pending requests must be fulfillable.");
         }
@@ -287,6 +292,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 slotRequestId,
                 resourceProfile);
 
+        //构造了一个slot的申请对象
         final PendingRequest pendingRequest =
                 PendingRequest.createNormalRequest(
                         slotRequestId, resourceProfile, preferredAllocations);
@@ -316,8 +322,10 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private CompletableFuture<PhysicalSlot> internalRequestNewSlot(
             PendingRequest pendingRequest, @Nullable Time timeout) {
+        //请求登记，在TaskManager进行回调的时候 找到这个pendingRequest回调，返回资源申请的结果
         internalRequestNewAllocatedSlot(pendingRequest);
 
+        //等待回调
         if (timeout == null) {
             return pendingRequest.getSlotFuture();
         } else {

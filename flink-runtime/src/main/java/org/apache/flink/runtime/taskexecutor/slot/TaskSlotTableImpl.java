@@ -329,10 +329,10 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                         memoryVerificationExecutor);
         taskSlots.put(index, taskSlot);
 
-        // update the allocation id to task slot map
+        // update the allocation id to task slot map 已分配
         allocatedSlots.put(allocationId, taskSlot);
 
-        // register a timeout for this slot since it's in state allocated
+        // register a timeout for this slot since it's in state allocated 注册一个超时任务 防止这个slot一直不通
         timerService.registerTimeout(allocationId, slotTimeout.getSize(), slotTimeout.getUnit());
 
         // add this slot to the set of job slots

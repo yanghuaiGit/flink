@@ -312,6 +312,7 @@ public class ConfigurationUtils {
      *     type clazz
      */
     @SuppressWarnings("unchecked")
+    //配置文件里的值根据第一的options的类型 转为对应的数据 例如配置内存为2M 2G等进行转换为bute
     public static <T> T convertValue(Object rawValue, Class<?> clazz) {
         if (Integer.class.equals(clazz)) {
             return (T) convertToInt(rawValue);

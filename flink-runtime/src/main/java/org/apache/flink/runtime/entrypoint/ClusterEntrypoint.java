@@ -551,6 +551,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
         LOG.error("Fatal error occurred in the cluster entrypoint.", exception);
 
+        //JVM退出
         FlinkSecurityManager.forceProcessExit(RUNTIME_FAILURE_RETURN_CODE);
     }
 

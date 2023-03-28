@@ -187,6 +187,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         LOG);
     }
 
+    /**
+     * TaskManager 逻辑从节点
+     * TaskExecutor 物理从节点
+     * @throws Exception
+     */
     private void startTaskManagerRunnerServices() throws Exception {
         synchronized (lock) {
             rpcSystem = RpcSystem.load(configuration);

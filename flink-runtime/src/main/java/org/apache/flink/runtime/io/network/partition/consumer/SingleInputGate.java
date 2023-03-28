@@ -745,6 +745,7 @@ public class SingleInputGate extends IndexedInputGate {
         }
 
         Optional<InputWithData<InputChannel, BufferAndAvailability>> next =
+                //获取可读数据的channel。没有的话 就会阻塞 等待有数据后进行唤醒
                 waitAndGetNextData(blocking);
         if (!next.isPresent()) {
             throughputCalculator.pauseMeasurement();
@@ -768,12 +769,14 @@ public class SingleInputGate extends IndexedInputGate {
             boolean blocking) throws IOException, InterruptedException {
         while (true) {
             synchronized (inputChannelsWithData) {
+                //获取到channel之后
                 Optional<InputChannel> inputChannelOpt = getChannel(blocking);
                 if (!inputChannelOpt.isPresent()) {
                     return Optional.empty();
                 }
 
                 final InputChannel inputChannel = inputChannelOpt.get();
+                //拿到数据
                 Optional<BufferAndAvailability> bufferAndAvailabilityOpt =
                         inputChannel.getNextBuffer();
 
@@ -873,6 +876,7 @@ public class SingleInputGate extends IndexedInputGate {
                 // 1. releasing inputChannelsWithData lock in this method and reaching this place
                 // 2. empty data notification that re-enqueues a channel we can end up with
                 // moreAvailable flag set to true, while we expect no more data.
+                //todo 获取有数据可读的inputChannel !pollNext()
                 checkState(!moreAvailable || !pollNext().isPresent());
                 moreAvailable = false;
                 markAvailable();
@@ -1017,6 +1021,8 @@ public class SingleInputGate extends IndexedInputGate {
                 if (priority && inputChannelsWithData.getNumPriorityElements() == 1) {
                     notification.notifyPriority();
                 }
+
+                //通知 唤醒
                 if (inputChannelsWithData.size() == 1) {
                     notification.notifyDataAvailable();
                 }
@@ -1054,6 +1060,7 @@ public class SingleInputGate extends IndexedInputGate {
             return false;
         }
 
+        //将inputChannel加入到inputChannelsWithData里
         inputChannelsWithData.add(channel, priority, alreadyEnqueued);
         if (!alreadyEnqueued) {
             enqueuedInputChannelsWithData.set(channel.getChannelIndex());
@@ -1070,6 +1077,7 @@ public class SingleInputGate extends IndexedInputGate {
             }
 
             if (blocking) {
+                //只要当前这个Task的InputGate中的所有InputChannel都没有数据可读，则阻塞在这儿
                 inputChannelsWithData.wait();
             } else {
                 availabilityHelper.resetUnavailable();

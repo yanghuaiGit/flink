@@ -126,8 +126,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         if (increment.isEmpty()) {
             return;
         }
+        //资源需求集合 请求次数+1
         totalResourceRequirements = totalResourceRequirements.add(increment);
-
+        //开始声明式申请资源
         declareResourceRequirements();
     }
 
@@ -149,6 +150,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     private void declareResourceRequirements() {
+        //获取资源申请需求总量
         final Collection<ResourceRequirement> resourceRequirements = getResourceRequirements();
 
         log.debug(
@@ -158,6 +160,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 resourceRequirements,
                 System.lineSeparator(),
                 fulfilledResourceRequirements);
+        //核心入口 触发jobMaster发送RPC请求给ResourceManager 满足资源申请需求 org.apache.flink.runtime.resourcemanager.ResourceManagerGateway.declareRequiredResources
         notifyNewResourceRequirements.accept(resourceRequirements);
     }
 
@@ -202,10 +205,12 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         final Collection<AllocatedSlot> acceptedSlots = new ArrayList<>();
 
         for (SlotOffer offer : offers) {
+            //如果这个slot已经申请到了
             if (slotPool.containsSlot(offer.getAllocationId())) {
                 // we have already accepted this offer
                 acceptedSlotOffers.add(offer);
             } else {
+                //接受一个全新的slot
                 Optional<AllocatedSlot> acceptedSlot =
                         matchOfferWithOutstandingRequirements(
                                 offer, taskManagerLocation, taskManagerGateway, matchingCondition);
@@ -220,12 +225,14 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             }
         }
 
+        //加入到slotPool中进行管理
         slotPool.addSlots(acceptedSlots, currentTime);
 
         if (!acceptedSlots.isEmpty()) {
             log.debug(
                     "Acquired new resources; new total acquired resources: {}",
                     fulfilledResourceRequirements);
+            //通知业务方 资源申请到了
             newSlotsListener.notifyNewSlotsAreAvailable(acceptedSlots);
         }
 

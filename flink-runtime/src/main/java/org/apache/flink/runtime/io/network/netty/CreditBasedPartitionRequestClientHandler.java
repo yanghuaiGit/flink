@@ -48,6 +48,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * write and flush the unannounced credits for the producer.
  *
  * <p>It is used in the new network credit-based mode.
+ * 通道处理程序从生产者读取缓冲区响应或错误响应的消息，为生产者写入和刷新未通知的信用
+ *
+ * 下游会发信号给上游当前不能处理数据了，不要发送数据了 其实就是反压的处理
  */
 class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdapter
         implements NetworkClientHandler {
@@ -273,6 +276,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             }
 
             try {
+                //对数据进行解码 到底是数据 还是 事件(比如checkPoint barrier)
                 decodeBufferOrEvent(inputChannel, bufferOrEvent);
             } catch (Throwable t) {
                 inputChannel.onError(t);
@@ -331,6 +335,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         if (bufferOrEvent.isBuffer() && bufferOrEvent.bufferSize == 0) {
             inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
         } else if (bufferOrEvent.getBuffer() != null) {
+            //buffer处理数据
             inputChannel.onBuffer(
                     bufferOrEvent.getBuffer(), bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
         } else {

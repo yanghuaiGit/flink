@@ -219,11 +219,17 @@ public class NettyShuffleEnvironment
             Preconditions.checkState(
                     !isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
+            //结果容器 单流处理场景中 这个ResultPartition长度为1
             ResultPartition[] resultPartitions =
                     new ResultPartition[resultPartitionDeploymentDescriptors.size()];
             for (int partitionIndex = 0;
                     partitionIndex < resultPartitions.length;
                     partitionIndex++) {
+                /**
+                 * 先根据resultPartition的deploymentDescriptor创建ResultPartition
+                 * 1 先创建pipelinedResultPartition
+                 * 2 然后创建PipelineResultPartition内的PipelinedResultSubPartition
+                 */
                 resultPartitions[partitionIndex] =
                         resultPartitionFactory.create(
                                 ownerContext.getOwnerName(),

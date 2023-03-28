@@ -393,6 +393,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                     .getIOMetricGroup()
                     .registerMailboxSizeSupplier(() -> mailbox.size());
 
+            //todo  很重要的组件 处理输入  从1.9引入的一个事件处理模型
             this.mailboxProcessor =
                     new MailboxProcessor(
                             this::processInput, mailbox, actionExecutor, mailboxMetricsControl);
@@ -427,6 +428,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             environment.setMainMailboxExecutor(mainMailboxExecutor);
             environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
 
+            //stateBackend
             this.stateBackend = createStateBackend();
             this.checkpointStorage = createCheckpointStorage(stateBackend);
             this.changelogWriterAvailabilityProvider =
@@ -778,12 +780,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // let the task do its work
         getEnvironment().getMetricGroup().getIOMetricGroup().markTaskStart();
         //执行任务
+        /**
+         * 内部运行一个死循环，不停地接收mail 然后执行处理 由 邮件处理器 来对mail 处理  MailboxProcess
+         */
         runMailboxLoop();
 
         // if this left the run() method cleanly despite the fact that this was canceled,
         // make sure the "clean shutdown" is not attempted
         ensureNotCanceled();
 
+        //stop close finish等等再这里执行
         afterInvoke();
     }
 

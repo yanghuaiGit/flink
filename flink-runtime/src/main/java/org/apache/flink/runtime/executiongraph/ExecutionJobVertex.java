@@ -493,7 +493,7 @@ public class ExecutionJobVertex
             //将IntermediateResult 加入到当前ExecutionJobVertex的输入中
             this.inputs.add(ires);
 
-            //将ExecutionJobVertex 与 IntermediateResult关联起来
+            //将ExecutionJobVertex 与 IntermediateResult关联起来 上游输出 和 当前顶点链接起来
             EdgeManagerBuildUtil.connectVertexToResult(this, ires, edge.getDistributionPattern());
         }
     }

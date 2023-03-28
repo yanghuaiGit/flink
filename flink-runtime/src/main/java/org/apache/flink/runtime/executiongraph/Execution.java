@@ -111,6 +111,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * a completed call is as expected, and trigger correcting actions if it is not. Many actions are
  * also idempotent (like canceling).
  */
+// execution包含了这个Task运行时所需要的各种信息 上游  下游 operator中的UserFunction 在最开始的时候，构造StreaGraph的时候，每个顶点都赋予了一个启动类，启动类TaskInvokable
+//jar包 依赖jar包在这个对象中吗 不是的，在blobServer里面
+//Task初始化和启动 14个动作 其中的一个动作 就是从BlobServer下载Job和Task的相关信息和jar等
 public class Execution
         implements AccessExecution, Archiveable<ArchivedExecution>, LogicalSlot.Payload {
 
@@ -509,6 +512,8 @@ public class Execution
     public void deploy() throws JobException {
         assertRunningInJobMasterMainThread();
 
+        //Task 是和一个 LogicSlot 关联的 是一对一的
+        //LogicalSlot 和物理Slot是多对一的关系
         final LogicalSlot slot = assignedResource;
 
         checkNotNull(
@@ -524,6 +529,7 @@ public class Execution
 
         // make sure exactly one deployment call happens from the correct state
         ExecutionState previous = this.state;
+        //修改状态为DEPLOYING
         if (previous == SCHEDULED) {
             if (!transitionState(previous, DEPLOYING)) {
                 // race condition, someone else beat us to the deploying call.
@@ -569,6 +575,8 @@ public class Execution
 
             //将intermediateResultPartition转为ResultPartition
             //将ExecutionEdge转换成InputChannelDeploymentDescriptor 最终会在执行时转换成inputGate
+            //TaskDeploymentDescriptor 部署抽象 execution的所有相关重要信息都放在TaskDeploymentDescriptor里
+            //当不是䘝Task的时候 只会传递一个信息对象给TaskExecutor，就是TaskDeploymentDescriptor
             final TaskDeploymentDescriptor deployment =
                     TaskDeploymentDescriptorFactory.fromExecution(this)
                             .createDeploymentDescriptor(
@@ -588,7 +596,13 @@ public class Execution
             // We run the submission in the future executor so that the serialization of large TDDs
             // does not block
             // the main thread and sync back to the main thread once submission is completed.
+            // jobMaster提交Task给TaskExecutor
+            /**
+             *  一个ExecutionVertex需要部署一个Task
+             *  部署的时候 首先会生成一个TaskDeploymentDescriptor 然后rpc请求发送给Slot所在的节点
+             */
             CompletableFuture.supplyAsync(
+                    //todo 在这里面rpc到taskManager，taskManager里会进行task的部署的
                             () -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
                     .thenCompose(Function.identity())
                     .whenCompleteAsync(

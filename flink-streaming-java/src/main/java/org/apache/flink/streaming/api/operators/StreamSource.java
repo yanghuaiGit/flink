@@ -96,6 +96,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         final long watermarkInterval =
                 getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
+        //根据时间语义 创建对应的context
         this.ctx =
                 StreamSourceContexts.getSourceContext(
                         timeCharacteristic,

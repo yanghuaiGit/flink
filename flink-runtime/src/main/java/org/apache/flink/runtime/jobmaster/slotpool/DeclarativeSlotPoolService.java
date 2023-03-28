@@ -119,10 +119,12 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         this.jobMasterId = Preconditions.checkNotNull(jobMasterId);
         this.jobManagerAddress = Preconditions.checkNotNull(address);
 
+        //专门用来做资源申请的 维护jobMaster和RM之间的连接，通过这个连接申请slot资源
         this.resourceRequirementServiceConnectionManager =
                 DefaultDeclareResourceRequirementServiceConnectionManager.create(
                         mainThreadExecutor);
 
+        //启动两个定时任务
         onStart(mainThreadExecutor);
 
         state = State.STARTED;
