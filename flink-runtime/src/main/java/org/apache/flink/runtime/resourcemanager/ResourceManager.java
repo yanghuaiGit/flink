@@ -354,6 +354,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     //  RPC methods
     // ------------------------------------------------------------------------
 
+    //处理jobMaster的注册
     @Override
     public CompletableFuture<RegistrationResponse> registerJobMaster(
             final JobMasterId jobMasterId,
@@ -376,6 +377,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                 "Could not add the job " + jobId + " to the job id leader service.",
                                 e);
 
+                //如果RsourceManager解析JobMaster的注册 如果失败，则ResourceManager所在的JVM直接退出
                 onFatalError(exception);
 
                 log.error("Could not add job {} to job leader id service.", jobId, e);
@@ -415,6 +417,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                         jobMasterIdFuture,
                         (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
                             if (Objects.equals(leadingJobMasterId, jobMasterId)) {
+                                //注册
                                 return registerJobMasterInternal(
                                         jobMasterGateway,
                                         jobId,
@@ -925,6 +928,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             JobID jobId,
             String jobManagerAddress,
             ResourceID jobManagerResourceId) {
+        //判断是否注册过
         if (jobManagerRegistrations.containsKey(jobId)) {
             JobManagerRegistration oldJobManagerRegistration = jobManagerRegistrations.get(jobId);
 
@@ -951,8 +955,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             }
         } else {
             // new registration for the job
+            //生成一个注册信息对象 登记到一个内存数据结构
             JobManagerRegistration jobManagerRegistration =
                     new JobManagerRegistration(jobId, jobManagerResourceId, jobMasterGateway);
+            //注册完成
             jobManagerRegistrations.put(jobId, jobManagerRegistration);
             jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
             blocklistHandler.registerBlocklistListener(jobMasterGateway);
@@ -964,6 +970,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                 jobManagerAddress,
                 jobId);
 
+        //注册完成之后 接下来开始维持心跳，把当前注册成功的JobMaster抽象成一个HeartBeatTarget维护在一个数据集合中
+        //Resourceamanager 其实有2个心跳定时任务 分别维护taskmanager 和 jobMaster
         jobManagerHeartbeatManager.monitorTarget(
                 jobManagerResourceId, new JobMasterHeartbeatSender(jobMasterGateway));
 

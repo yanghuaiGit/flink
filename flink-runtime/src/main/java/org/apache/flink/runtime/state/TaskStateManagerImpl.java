@@ -138,7 +138,9 @@ public class TaskStateManagerImpl implements TaskStateManager {
         long checkpointId = checkpointMetaData.getCheckpointId();
 
         localStateStore.storeLocalState(checkpointId, localState);
-
+        //rpc请求到了jobmaster
+        //在这里就会将task上报的元数据信息(checkpoint的路径地址 状态数据大小等等)添加到PendingCheckPoint里
+        //如果接收到全部的task上报的Ack信息，就执行completePendingCheckpoint
         checkpointResponder.acknowledgeCheckpoint(
                 jobId, executionAttemptID, checkpointId, checkpointMetrics, acknowledgedState);
     }

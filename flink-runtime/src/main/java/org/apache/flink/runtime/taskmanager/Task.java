@@ -293,6 +293,7 @@ public class Task
     /**
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
      * case of a failing task deployment.
+     * 必须搞定输入 输出
      */
     public Task(
             JobInformation jobInformation,
@@ -386,6 +387,11 @@ public class Task
                         taskNameWithSubtaskAndId, executionId, metrics.getIOMetricGroup());
 
         // produced intermediate result partitions
+        /**
+         * 1 先创建pipelinedResultPartition
+         * 2 然后创建pipelinedResultPartition内的pipelineResultSubPartition
+         *
+         */
         final ResultPartitionWriter[] resultPartitionWriters =
                 shuffleEnvironment
                         .createResultPartitionWriters(
@@ -418,6 +424,7 @@ public class Task
         invokableHasBeenCanceled = new AtomicBoolean(false);
 
         // finally, create the executing thread, but do not start it
+        //StreamTask的执行线程
         executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
     }
 
@@ -553,6 +560,14 @@ public class Task
         }
     }
 
+    /**
+     * 创建物理Task
+     * 启动物理Task  StreamTask BatchTask
+     *
+     * Flink逻辑task == Flink物理task的创建和执行
+     * 整体13步
+     *
+     */
     private void doRun() {
         // ----------------------------
         //  Initial State transition
@@ -560,6 +575,7 @@ public class Task
         while (true) {
             ExecutionState current = this.executionState;
             if (current == ExecutionState.CREATED) {
+                //step1 更改状态CREATED -》DEPLOYING
                 if (transitionState(ExecutionState.CREATED, ExecutionState.DEPLOYING)) {
                     // success, we can start our work
                     break;
@@ -610,6 +626,7 @@ public class Task
             LOG.info("Loading JAR files for task {}.", this);
 
             userCodeClassLoader = createUserCodeClassloader();
+            //step2  拿到配置
             final ExecutionConfig executionConfig =
                     serializedExecutionConfig.deserializeValue(userCodeClassLoader.asClassLoader());
 
@@ -636,13 +653,19 @@ public class Task
 
             LOG.debug("Registering task at network: {}.", this);
 
+            //step3 启动和配置ResultPartition 和InputGate
             setupPartitionsAndGates(partitionWriters, inputGates);
 
+            // step4 resultPartition 注册到 TaskEventDispatcher
             for (ResultPartitionWriter partitionWriter : partitionWriters) {
                 taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
             }
 
             // next, kick off the background copying of files for the distributed cache
+            //step5 处理分布式缓存的文件，从分布式缓存中 拷贝下来一些运行Task所需要的资源文件
+
+            //BlobService 存储的是Job的元数据
+            //distributedCache 共享的是Task的逻辑计算中会用到的数据
             try {
                 for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
                         DistributedCache.readFileInfoFromConfig(jobConfiguration)) {
@@ -671,6 +694,7 @@ public class Task
             TaskKvStateRegistry kvStateRegistry =
                     kvStateService.createKvStateTaskRegistry(jobId, getJobVertexId());
 
+            //step6 创建运行环境对象
             Environment env =
                     new RuntimeEnvironment(
                             jobId,
@@ -710,7 +734,9 @@ public class Task
             FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
             try {
                 // now load and instantiate the task's invokable code
-                //加载和实例化Task的可执行代码
+                // todo 重要 step07 加载和实例化Task的可执行代码 nameOfInvokableClass
+                //通过反射创建一个Task的启动类 SourceStreamTask OneInputStreamTask TwoInputStreamTask StreamTask multiInputStreamTask..
+                // SourceStreamTask OneInputStreamTask  都是StreamTask的子类，唯一的区别就是 SourceStreamTask 多了个工作线程，负责对接数据源读取数据的
                 invokable =
                         loadAndInstantiateInvokable(
                                 userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
@@ -724,8 +750,10 @@ public class Task
 
             // we must make strictly sure that the invokable is accessible to the cancel() call
             // by the time we switched to running.
+            //step 8
             this.invokable = invokable;
 
+            //todo 很重要
             restoreAndInvoke(invokable);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
@@ -741,12 +769,14 @@ public class Task
             // finish the produced partitions. if this fails, we consider the execution failed.
             for (ResultPartitionWriter partitionWriter : partitionWriters) {
                 if (partitionWriter != null) {
+                    //当task要停止的时候 需要把Task的内存中的数据刷出来
                     partitionWriter.finish();
                 }
             }
 
             // try to mark the task as finished
             // if that fails, the task was canceled/failed in the meantime
+            // step13  流式任务一般不会到这个地方 状态running改为finished
             if (!transitionState(ExecutionState.RUNNING, ExecutionState.FINISHED)) {
                 throw new CancelTaskException();
             }
@@ -892,23 +922,28 @@ public class Task
         try {
             // switch to the INITIALIZING state, if that fails, we have been canceled/failed in the
             // meantime
+            //step9 DEPLOYING->INITIALIZING
             if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.INITIALIZING)) {
                 throw new CancelTaskException();
             }
 
+            //step 10 Task切换进入INITIALIZING 状态 并告知jobMaster
             taskManagerActions.updateTaskExecutionState(
                     new TaskExecutionState(executionId, ExecutionState.INITIALIZING));
 
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
+            //step11 可调用数据恢复到上次状态
             runWithSystemExitMonitoring(finalInvokable::restore);
 
+            //step11.2 状态更新到RUNNING
             if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
                 throw new CancelTaskException();
             }
 
             // notify everyone that we switched to running
+            //改为running状态 通知jobMaster
             taskManagerActions.updateTaskExecutionState(
                     new TaskExecutionState(executionId, ExecutionState.RUNNING));
 

@@ -329,6 +329,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             initInputsCheckpoint(metadata.getCheckpointId(), options);
         }
 
+        // ------ 核心的三个步骤 --------
         // Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
         //           The pre-barrier work should be nothing or minimal in the common case.
         operatorChain.prepareSnapshotPreBarrier(metadata.getCheckpointId());
@@ -342,6 +343,10 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 System.currentTimeMillis() - metadata.getTimestamp());
         CheckpointBarrier checkpointBarrier =
                 new CheckpointBarrier(metadata.getCheckpointId(), metadata.getTimestamp(), options);
+        /**
+         * 在task的输出ResultPartition里，给下游的每个通道channel都发送一个CheckpointBarrier，下游有多少个任务，那就有多少个通道，给每个任务都会发送CheckpointBarrier，这个过程就做广播
+         * 这个CheckpointBarrier广播的过程也叫CheckpointBarrier注入，因为CheckpointBarrier并不是由执行source task的线程来写入的，而是由checkpoint线程来写入的，并且做了同步，在写入CheckpointBarrier时source task线程是被阻塞的。
+         */
         operatorChain.broadcastEvent(checkpointBarrier, options.isUnalignedCheckpoint());
 
         // Step (3): Register alignment timer to timeout aligned barrier to unaligned barrier
@@ -360,8 +365,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         Map<OperatorID, OperatorSnapshotFutures> snapshotFutures =
                 new HashMap<>(operatorChain.getNumberOfOperators());
         try {
+            //针对每个operator创建OperatorSnapshotFutures
+            //OperatorSnapshotFutures持有了一个operator的状态数据快照过程的RunnableFuture
             if (takeSnapshotSync(
                     snapshotFutures, metadata, metrics, options, operatorChain, isRunning)) {
+                //执行快照并且异步上传结果
                 finishAndReportAsync(
                         snapshotFutures,
                         metadata,

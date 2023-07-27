@@ -96,6 +96,18 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
             throws IOException {
         final long barrierId = receivedBarrier.getId();
 
+        //1、如果只有一个channel，也就是说只有一个上游任务，就立马触发checkpoint
+        //
+        //2、如果有多个上游任务，也就是有多个channel，那么会有以下几种情况的判断
+        //
+        //1)、如果是首次接收到barrier，就开始进行barrier对齐，并将该channel设置为阻塞状态
+        //
+        //2)、如果不是首次接收到barrier，但也不是最后一个barrier，就只给channel设置为阻塞状态
+        //
+        //3)、如果在没完成当前checkpoint的时候又接收到了下一次checkpoint的barrier，就终止当前的checkpoint，重新开始新的一次checkpoint，这种情况并不常见
+        //
+        //4)、如果接收到全部channel，即上游所有任务的barrier，就开始触发checkpoint，并取消所有channel的阻塞状态，开始处理那些被添加到缓存的事件
+
         // fast path for single channel trackers. We only go with the fast path
         // for new checkpoints, otherwise we might met with the case that
         // 1. Received barrier from channel 0 (2 in total) and start a new checkpoint.
@@ -147,6 +159,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
             // if it is not newer than the latest checkpoint ID, then there cannot be a
             // successful checkpoint for that ID anyways
             if (barrierId > latestPendingCheckpointID) {
+                //这种情况就是上一个checkpoint还没完呢，就接收到下一个checkpoint的barrier，这种情况，就终止当前的checkpoint
                 markAlignmentStart(barrierId, receivedBarrier.getTimestamp());
                 latestPendingCheckpointID = barrierId;
                 pendingCheckpoints.addLast(

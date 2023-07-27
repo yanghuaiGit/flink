@@ -275,16 +275,18 @@ public class TaskManagerServices {
             WorkingDirectory workingDirectory)
             throws Exception {
 
-        // pre-start checks
+        // pre-start checks 检查taskExecutor用到的各种临时目录是否能读 能写 是否符合要求
         checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
 
+        //Task的事件分发器
         final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-        // start the I/O manager, it will create some temp directories.
+        // start the I/O manager, it will create some temp directories. 内部创建一组WriterThread和ReaderThread负责读写
         final IOManager ioManager =
                 new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths());
 
 
+        //启动内部的nettyClient和NettyServer nettyShuffleEnvironment
         final ShuffleEnvironment<?, ?> shuffleEnvironment =
                 createShuffleEnvironment(
                         taskManagerServicesConfiguration,

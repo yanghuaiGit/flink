@@ -551,12 +551,14 @@ public class RemoteInputChannel extends InputChannel {
 
                 wasEmpty = receivedBuffers.isEmpty();
 
+                //将buffer包装为 SequenceBuffer，带序列编号的sequenceNumber
                 SequenceBuffer sequenceBuffer = new SequenceBuffer(buffer, sequenceNumber);
                 DataType dataType = buffer.getDataType();
                 if (dataType.hasPriority()) {
                     firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
                     recycleBuffer = false;
                 } else {
+                    //加入到receivedBuffers中，一个InputChannel的内部有一个集合receivedBuffers，来存储当前channel接收到的数据
                     receivedBuffers.add(sequenceBuffer);
                     recycleBuffer = false;
                     if (dataType.requiresAnnouncement()) {

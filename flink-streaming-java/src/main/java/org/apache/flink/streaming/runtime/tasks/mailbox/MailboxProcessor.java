@@ -228,6 +228,12 @@ public class MailboxProcessor implements Closeable {
             // The blocking `processMail` call will not return until default action is available.
             processMail(localMailbox, false);
             if (isNextLoopPossible()) {
+                /**
+                 * 处理数据输入 只是告诉你在处理数据 输入到底是什么呢，不清楚，不知道这个输入是数据源输入 还是一个普通Task
+                 * mailboxDefaultAction 是StreamTask构造函数的第一个参数
+                 * 1 对接数据源的Task执行
+                 * 2 普通的Task执行
+                 */
                 mailboxDefaultAction.runDefaultAction(
                         mailboxController); // lock is acquired inside default action as needed
             }

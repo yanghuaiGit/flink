@@ -153,6 +153,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
         totalWrittenBytes += record.remaining();
 
+        //将真正数据写入buffer里
         BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
         while (record.hasRemaining()) {

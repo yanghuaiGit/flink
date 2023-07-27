@@ -446,10 +446,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public void enableCheckpointing(
-            CheckpointCoordinatorConfiguration chkConfig,
+            CheckpointCoordinatorConfiguration chkConfig, //checkPoint的配置
             List<MasterTriggerRestoreHook<?>> masterHooks,
-            CheckpointIDCounter checkpointIDCounter,
-            CompletedCheckpointStore checkpointStore,
+            CheckpointIDCounter checkpointIDCounter,//checkpoint ID计数器,每执行一次就+1
+            CompletedCheckpointStore checkpointStore,//维护最近一次已完成的checkPoint的信息
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
             CheckpointStatsTracker statsTracker,
@@ -494,6 +494,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                                 Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
 
         // create the coordinator that triggers and commits checkpoints and holds the state
+        //不管有没有开启checkPoint 都会创建一个CheckpointCoordinator
         checkpointCoordinator =
                 new CheckpointCoordinator(
                         jobInformation.getJobId(),
@@ -520,9 +521,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             }
         }
 
+        //如果任务开启了checkPoint，那么会注册一个listener，在任务状态发生改变的之后，执行对应的操作
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             // the periodic checkpoint scheduler is activated and deactivated as a result of
             // job status changes (running -> on, all other states -> off)
+            //这里的listener逻辑是在任务状态为running的时候，运行checkpointCoordinator，否则停止checkpointCoordinator
             registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
         }
 

@@ -988,7 +988,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             // job is ready to go, try to establish connection with resource manager
             //   - activate leader retrieval for the resource manager
             //   - on notification of the leader, the connection will be established and
-            //     the slot pool will start requesting slots
+            //     the slot pool will start requesting slots 通过这个组件进行资源的申请 向resourceManager注册
             resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
         } catch (Exception e) {
             handleStartJobMasterServicesError(e);
@@ -1164,6 +1164,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         log.info("Connecting to ResourceManager {}", resourceManagerAddress);
 
+        //JobMaster和ResourceManager连接
         resourceManagerConnection =
                 new ResourceManagerConnection(
                         log,
@@ -1351,6 +1352,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             this.jobMasterId = checkNotNull(jobMasterId);
         }
 
+        //JobMaster向ResourceManager进行注册回调
         @Override
         protected RetryingRegistration<
                         ResourceManagerId,

@@ -110,19 +110,23 @@ class CheckpointRequestDecider {
      */
     Optional<CheckpointTriggerRequest> chooseRequestToExecute(
             CheckpointTriggerRequest newRequest, boolean isTriggering, long lastCompletionMs) {
+        //当前队列里的请求数量不能大于maxQueuedRequests（写死的1000）
+        // CheckpointCoordinator周期性触发的CheckpointTriggerRequest的isPeriodic一般都是true
         if (queuedRequests.size() >= maxQueuedRequests && !queuedRequests.last().isPeriodic) {
             // there are only non-periodic (ie user-submitted) requests enqueued - retain them and
-            // drop the new one
+            // drop the new one 直接丢弃
             newRequest.completeExceptionally(new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
             return Optional.empty();
         } else {
             queuedRequests.add(newRequest);
             if (queuedRequests.size() > maxQueuedRequests) {
+                //移除掉最后一个
                 queuedRequests
                         .pollLast()
                         .completeExceptionally(
                                 new CheckpointException(TOO_MANY_CHECKPOINT_REQUESTS));
             }
+            //核心逻辑 真正的去选择一个checkpoint
             Optional<CheckpointTriggerRequest> request =
                     chooseRequestToExecute(isTriggering, lastCompletionMs);
             request.ifPresent(CheckpointRequestDecider::logInQueueTime);
@@ -151,12 +155,16 @@ class CheckpointRequestDecider {
      */
     private Optional<CheckpointTriggerRequest> chooseRequestToExecute(
             boolean isTriggering, long lastCompletionMs) {
+        // 如果当前正在触发checkpoint 或者 队列为空 或者 同时进行的最大checkpoint的操作数量
+        //maxConcurrentCheckpointAttempts 默认是1，代表flink同一时间内只会进行一次checkpoint的操作，只有前一个checkpoint完成，才会触发下一次
         if (isTriggering
                 || queuedRequests.isEmpty()
                 || numberOfCleaningCheckpointsSupplier.getAsInt()
                         > maxConcurrentCheckpointAttempts) {
             return Optional.empty();
         }
+        //如果pendingCheckpointsSize大于maxConcurrentCheckpointAttempts 且第一个是force的就返回，
+        //checkpoint的force 都是false，savepoint的是true
         if (pendingCheckpointsSizeSupplier.getAsInt() >= maxConcurrentCheckpointAttempts) {
             return Optional.of(queuedRequests.first())
                     .filter(CheckpointTriggerRequest::isForce)
@@ -164,7 +172,9 @@ class CheckpointRequestDecider {
         }
 
         CheckpointTriggerRequest first = queuedRequests.first();
+        //checkpoint的isPeriodic是true，isForce是false，其实这个地方就是判断这个checkPoint是checkPoint还是savepoint
         if (!first.isForce() && first.isPeriodic) {
+            //上一次checkPoint结束的时间加上2次checkPoint间隔最小时间还是大于当前时间，说明是在这个最小间隔时间内，需要重置这个调度，重新进行Schedule
             long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
             if (nextTriggerDelayMillis > 0) {
                 queuedRequests

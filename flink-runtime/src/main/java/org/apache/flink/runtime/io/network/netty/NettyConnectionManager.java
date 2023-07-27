@@ -68,8 +68,10 @@ public class NettyConnectionManager implements ConnectionManager {
 
         this.server = new NettyServer(nettyConfig);
         this.client = new NettyClient(nettyConfig);
+        //管理内存
         this.bufferPool = checkNotNull(bufferPool);
 
+        // 用来创建数据传输客户端的工厂实例
         this.partitionRequestClientFactory =
                 new PartitionRequestClientFactory(
                         client,
@@ -77,6 +79,7 @@ public class NettyConnectionManager implements ConnectionManager {
                         maxNumberOfConnections,
                         connectionReuseEnabled);
 
+        //上下游TaskExecutor之间交换数据的通信协议
         this.nettyProtocol =
                 new NettyProtocol(
                         checkNotNull(partitionProvider), checkNotNull(taskEventPublisher));

@@ -170,6 +170,7 @@ public class StreamOperatorStateHandler {
                 new StateSnapshotContextSynchronousImpl(
                         checkpointId, timestamp, factory, keyGroupRange, closeableRegistry);
 
+        //将snapshotContext进行快照，这个过程也会调用CheckpointedFunction.snapshotState()方法
         snapshotState(
                 streamOperator,
                 timeServiceManager,
@@ -220,11 +221,13 @@ public class StreamOperatorStateHandler {
                 }
             }
             streamOperator.snapshotState(snapshotContext);
-
+            //keyedStateRawFuture和operatorStateRawFuture都是DoneFuture,也就是一个已经完成的RunnableFuture
             snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
             snapshotInProgress.setOperatorStateRawFuture(
                     snapshotContext.getOperatorStateStreamFuture());
 
+            //operatorState和keyedState的snapshot过程被封装到一个RunnableFuture，并不会立即执行，
+            //之后调用RunnableFuture.run()才会真正的执行snapshot
             if (null != operatorStateBackend) {
                 snapshotInProgress.setOperatorStateManagedFuture(
                         operatorStateBackend.snapshot(

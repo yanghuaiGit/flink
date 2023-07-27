@@ -108,6 +108,7 @@ public abstract class RegisteredRpcConnection<
                 "The RPC connection is already started");
 
         //创建注册对象。初始化下里面的future，一些whenComplete的回调方法设置好，代表一次注册行为，在注册完成后进行回调
+        //最终就是回调 RetryingRegistration#invokeRegistration
         final RetryingRegistration<F, G, S, R> newRegistration = createNewRegistration();
 
         if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {

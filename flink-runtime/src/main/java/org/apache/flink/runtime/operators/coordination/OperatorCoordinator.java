@@ -73,6 +73,18 @@ import java.util.concurrent.CompletableFuture;
  *       tasks (new attempts) are ready to go. This is later than {@link #subtaskReset(int, long)},
  *       because between those methods, the new attempts are scheduled and deployed.
  * </ol>
+ * OperatorCoordinator是Flink在1.10版本引入的一个接口，它主要用于管理和协调一个或多个 Operator（运算符）的生命周期和其它任务。
+ *
+ * 在很多情况下，一些特定的运算符可能需要协调其运行过程中的状态或交互。例如，如果一个运算符需要从外部系统中消费数据，可能需要一个全局视图来管理分区消费的分配。
+ * 另外，对于一些需要精确一次（Exactly-Once）处理语义的运算符，需要在进行checkpoint时保存和恢复其状态，以便在出现故障时能够从最近的成功的checkpoint恢复。
+ *
+ * 在这些情况下，就可以使用 OperatorCoordinator 接口来实现这样的功能。Flink 提供了 OperatorCoordinator.Provider 和 OperatorCoordinator.Context 两个接口，
+ * 用于创建 OperatorCoordinator 实例和与Flink 运行时进行交互。OperatorCoordinator 可以获取到 Flink 运行时的一些信息，例如当前的并行度、任务的状态等，并可以触发checkpoint或重新分配任务。
+ *
+ * 例如，在Flink Kafka connector中，就使用了 OperatorCoordinator 来管理 Kafka 的分区消费的分配和offset的提交。
+ * 当任务发生故障或者需要扩缩容时，OperatorCoordinator 可以重新分配 Kafka 的分区给各个任务，以实现动态的负载均衡。
+ *
+ * 总的来说，OperatorCoordinator 主要提供了对特定运算符进行全局管理和协调的能力，对于实现高级的数据源连接器和支持特定的处理语义（如Exactly-Once）有着重要的作用。
  */
 @Internal
 public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {

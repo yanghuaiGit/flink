@@ -150,6 +150,7 @@ public class SingleInputGateFactory {
 
         InputChannelMetrics metrics =
                 new InputChannelMetrics(networkInputGroup, owner.getParentGroup());
+        //数量是上游task的并行度
         createInputChannels(owningTaskName, igdd, inputGate, subpartitionIndexRange, metrics);
         return inputGate;
     }
@@ -228,6 +229,7 @@ public class SingleInputGateFactory {
         return applyWithShuffleTypeCheck(
                 NettyShuffleDescriptor.class,
                 shuffleDescriptor,
+                //UnknownInputChannel 创建时机的问题，在创建的时候还无法确定到底使用remote还是local，所以首先创建的是Unknown，后来会判断是不是unknown，如果是 再修正
                 unknownShuffleDescriptor -> {
                     channelStatistics.numUnknownChannels++;
                     return new UnknownInputChannel(
@@ -269,7 +271,7 @@ public class SingleInputGateFactory {
             InputChannelMetrics metrics) {
         ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
         if (inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
-            // Consuming task is deployed to the same TaskManager as the partition => local
+            // Consuming task is deployed to the same TaskManager as the partition => local 上下游task在同一个节点
             channelStatistics.numLocalChannels++;
             return new LocalRecoveredInputChannel(
                     inputGate,

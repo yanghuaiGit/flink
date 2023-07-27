@@ -132,8 +132,8 @@ public class PendingCheckpoint implements Checkpoint {
     public PendingCheckpoint(
             JobID jobId,
             long checkpointId,
-            long checkpointTimestamp,
-            CheckpointPlan checkpointPlan,
+            long checkpointTimestamp,//checkpoint开始时间
+            CheckpointPlan checkpointPlan,//checkpoint的计划(哪些节点触发，一共有哪些节点task，有哪些结束的task等等信息)
             Collection<OperatorID> operatorCoordinatorsToConfirm,
             Collection<String> masterStateIdentifiers,
             CheckpointProperties props,
@@ -405,6 +405,7 @@ public class PendingCheckpoint implements Checkpoint {
             } else {
                 List<OperatorIDPair> operatorIDs = vertex.getJobVertex().getOperatorIDs();
                 for (OperatorIDPair operatorID : operatorIDs) {
+                    //将上报的operatorSubtaskStates也就是每个Task的状态快照元数据添加到PendingCheckpoint的operatorStates里面
                     updateOperatorState(vertex, operatorSubtaskStates, operatorID);
                 }
 

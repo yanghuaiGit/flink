@@ -178,12 +178,20 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * PipelinedRegion 血缘区域 有上下游依赖关系的Task链 slot共享，这是重点
+     * Execution 的逻辑执行图 = Topology = 在执行规划 到底启动多少Task 需要申请多少slot
+     * 一个PipelinedRegion 申请一个Slot
+     * 一个Topology会有多个PipelinedRegion，按照PipelinedRegion的逻辑顺序来顺序调度的
+     */
     @Override
     public void startScheduling() {
+        //获取血缘区域
         final Set<SchedulingPipelinedRegion> sourceRegions =
                 IterableUtils.toStream(schedulingTopology.getAllPipelinedRegions())
                         .filter(this::isSourceRegion)
                         .collect(Collectors.toSet());
+        //循环调度
         maybeScheduleRegions(sourceRegions);
     }
 

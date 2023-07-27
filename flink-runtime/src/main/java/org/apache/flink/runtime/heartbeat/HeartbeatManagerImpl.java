@@ -151,6 +151,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                                 failedRpcRequestsUntilUnreachable);
 
 
+                //org.apache.flink.runtime.heartbeat.HeartbeatManagerSenderImpl.run 在这里是有一个线程进行定时心跳的
                 heartbeatTargets.put(resourceID, heartbeatMonitor);
 
                 // check if we have stopped in the meantime (concurrent stop operation)

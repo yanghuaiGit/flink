@@ -105,6 +105,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.isTaskRunning = isTaskRunning;
     }
 
+
+    //1. 针对每个operator创建一个OperatorSnapshotFinalizer，OperatorSnapshotFinalizer是状态数据快照的真正执行者，它真正的执行的operator的快照过程，也就是去执行那些FutureTask
+    //2、状态快照执行完毕之后上JobManager上报checkpoint的信息
     @Override
     public void run() {
         final long asyncStartNanos = System.nanoTime();
@@ -132,7 +135,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
             if (asyncCheckpointState.compareAndSet(
                     AsyncCheckpointState.RUNNING, AsyncCheckpointState.COMPLETED)) {
-
+                //向JobManager上报checkpoint的信息
                 reportCompletedSnapshotStates(
                         snapshotsFinalizeResult.jobManagerTaskOperatorSubtaskStates,
                         snapshotsFinalizeResult.localTaskOperatorSubtaskStates,
@@ -188,6 +191,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             OperatorSnapshotFutures snapshotInProgress = entry.getValue();
 
             // finalize the async part of all by executing all snapshot runnables
+            // //这里真正的执行的operator的快照过程，会执行那些FutureTask
+            //创建OperatorSnapshotFinalizer实例的时候就会去运行那些FutureTask，执行快照过程，比如将状态数据写到文件系统如HDFS等。
             OperatorSnapshotFinalizer finalizedSnapshots =
                     new OperatorSnapshotFinalizer(snapshotInProgress);
 
@@ -412,7 +417,11 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     }
 
     private static class SnapshotsFinalizeResult {
+
+
+        //是需要向JobManager ack的operator状态快照元数据信息
         final TaskStateSnapshot jobManagerTaskOperatorSubtaskStates;
+        //是需要向TaskManager上报的operator状态快照元数据信息,localTaskOperatorSubtaskStates的作用是为状态数据保存一个备份，用户TaskManager快速的进行本地数据恢复
         final TaskStateSnapshot localTaskOperatorSubtaskStates;
         final long bytesPersistedDuringAlignment;
 

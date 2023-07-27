@@ -599,6 +599,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final JobID jobId = tdd.getJobId();
             final ExecutionAttemptID executionAttemptID = tdd.getExecutionAttemptId();
 
+            //为了保持和JobMaster的通信
             final JobTable.Connection jobManagerConnection =
                     jobTable.getConnection(jobId)
                             .orElseThrow(
@@ -625,6 +626,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 throw new TaskSubmissionException(message);
             }
 
+            //标记Slot为active 表示这个slot被使用
+            //在申请的时候 已经把这个slot登记进去了，现在只是取出来 验证相关ID是否一一对应一致  然后修改状态为active
             if (!taskSlotTable.tryMarkSlotActive(jobId, tdd.getAllocationId())) {
                 final String message =
                         "No task slot allocated for job ID "
@@ -638,6 +641,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             // re-integrate offloaded data:
             try {
+                // TaskDeploymentDescriptor 你是Task的时候所需要的资料 元数据
+                //loadBigData 真正的去下载这个Task启动运行时所需要的生产资料 jar包(main函数所属jar） 依赖jar 配置文件等
+                //在dispatch里上传到了BlobServer里
                 tdd.loadBigData(taskExecutorBlobService.getPermanentBlobService());
             } catch (IOException | ClassNotFoundException e) {
                 throw new TaskSubmissionException(
@@ -645,6 +651,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             }
 
             // deserialize the pre-serialized information
+            //反序列化
             final JobInformation jobInformation;
             final TaskInformation taskInformation;
             try {
@@ -741,16 +748,31 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 throw new TaskSubmissionException("Could not submit task.", e);
             }
 
+            /**
+             * 创建一个逻辑 Task  Flink任何应用程序中 任何一个逻辑执行单元 都叫做Task 包含了启动这个Task所需要的各种生产资料
+             * 启动任何物理Task的一个统一入口 最终通过一个线程来启动
+             * 物理Task StreamTask BatchTask oneInputStreamTask等等
+             *
+             * 主要做了四件事
+             * 1 创建TaskInfo task的元数据
+             * 2 创建ResultPartition 和ResultSubPartition 输出组件
+             * 3 创建InputGate 和 InputChannel 输入组件
+             * 4 创建ExecutionThread 负责执行Task
+             */
             Task task =
                     new Task(
                             jobInformation,
                             taskInformation,
                             tdd.getExecutionAttemptId(),
                             tdd.getAllocationId(),
+                            //部署该Task对应的ResultPartition 和ResultSubpartition 的 DD对象
                             tdd.getProducedPartitions(),
+                            // 部署该Task对应的InputGate 和 InputChannel的dd对象
                             tdd.getInputGates(),
                             memoryManager,
+                            //这一堆参数 都是 从节点提供的 假如从节点有3个slot，这些slot公用这些参数
                             taskExecutorServices.getIOManager(),
+                            //重要对象
                             taskExecutorServices.getShuffleEnvironment(),
                             taskExecutorServices.getKvStateService(),
                             taskExecutorServices.getBroadcastVariableManager(),
@@ -780,12 +802,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             boolean taskAdded;
 
             try {
+                //登记ExecutionGraph中某个顶点的某次尝试 使用了哪个从节点的哪个slot执行
                 taskAdded = taskSlotTable.addTask(task);
             } catch (SlotNotFoundException | SlotNotActiveException e) {
                 throw new TaskSubmissionException("Could not submit task.", e);
             }
 
             if (taskAdded) {
+                //内部执行线程开始运行
                 task.startTaskThread();
 
                 setupResultPartitionBookkeeping(
@@ -1030,6 +1054,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
+            //一般来说不做什么操作。但是像AbstractUdfStreamOperator这种的可能还会由一些其他操作
+            //AbstractUdfStreamOperator主要是针对用户自定义函数的operator，像StreamMap，StreamSource等等，
+            // 如果用户定义的Function实现了CheckpointListener接口，则会进行额外的一些处理，例如FlinkKafkaConsumerBase会向kafka提交消费的offset，TwoPhaseCommitSinkFunction类会进行事务的提交
+            // ，例如FlinkKafkaProducer。值得一提的是，TwoPhaseCommitSinkFunction是保证flink端到端exactly-once的保证
             task.notifyCheckpointComplete(completedCheckpointId);
 
             task.notifyCheckpointSubsumed(lastSubsumedCheckpointId);
@@ -1084,6 +1112,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // Slot allocation RPCs
     // ----------------------------------------------------------------------
 
+    // ResourceManager发送请求给TaskManager，分配资源，TaskManager就把分配的slot给jobMaster
     @Override
     public CompletableFuture<Acknowledge> requestSlot(
             final SlotID slotId,
@@ -1120,7 +1149,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     allocateSlotForJob(jobId, slotId, allocationId, resourceProfile, targetAddress);
 
             if (isConnected) {
-                //向jobManafer提供slot
+                //向jobMaster发送请求 告诉jobMAster分配的slot
                 offerSlotsToJobManager(jobId);
             }
 
@@ -1138,6 +1167,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             ResourceProfile resourceProfile,
             String targetAddress)
             throws SlotAllocationException {
+
+        //进行分配 登记
         allocateSlot(slotId, jobId, allocationId, resourceProfile);
 
         final JobTable.Job job;
@@ -1562,6 +1593,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             currentSlotOfferPerJob.put(jobId, slotOfferId);
 
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
+                    //给JobMaster发送Rpc请求 告诉slot申请到了
                     jobMasterGateway.offerSlots(
                             getResourceID(),
                             reservedSlots,

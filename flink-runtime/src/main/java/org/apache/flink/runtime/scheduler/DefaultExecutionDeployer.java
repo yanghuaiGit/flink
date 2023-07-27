@@ -92,15 +92,22 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
             final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex) {
         validateExecutionStates(executionsToDeploy);
 
+        //修改下状态为调度
         transitionToScheduled(executionsToDeploy);
 
+        //申请资源 ExecutionVertex executionGraph中的一个地那点，需要运行一个Task
+        //ExecutionSlotAssignment 记录Task和Slot的映射关系
         final List<ExecutionSlotAssignment> executionSlotAssignments =
                 allocateSlotsFor(executionsToDeploy);
 
+        //ExecutionSlotAssignment  变为 ExecutionDeploymentHandle
+        //ExecutionSlotAssignment存储的是资源和Task的映射关系
+        //ExecutionDeploymentHandle 给这个Task的部署 提供行为
         final List<ExecutionDeploymentHandle> deploymentHandles =
                 createDeploymentHandles(
                         executionsToDeploy, requiredVersionByVertex, executionSlotAssignments);
 
+        //部署Task 一个Task一个ExecutionDeploymentHandle
         waitForAllSlotsAndDeploy(deploymentHandles);
     }
 
@@ -178,15 +185,19 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         return FutureUtils.waitForAll(resultFutures);
     }
 
+    //部署所有的Task，一个PipelineRegion里的所有Task
     private BiFunction<Void, Throwable, Void> deployAll(
             final List<ExecutionDeploymentHandle> deploymentHandles) {
         return (ignored, throwable) -> {
             propagateIfNonNull(throwable);
+            //遍历每个Task执行部署
             for (final ExecutionDeploymentHandle deploymentHandle : deploymentHandles) {
+                //拿到logicSlot
                 final CompletableFuture<LogicalSlot> slotAssigned =
                         deploymentHandle.getLogicalSlotFuture();
                 checkState(slotAssigned.isDone());
 
+                //deployOrHandleError 部署一个Task
                 FutureUtils.assertNoException(
                         slotAssigned.handle(deployOrHandleError(deploymentHandle)));
             }
@@ -287,12 +298,15 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         };
     }
 
+    // deploymentHandle 里面有三个信息 Task是谁 Slot是谁 部署行为 也知道这个slot属于哪个TaskExecutor。拿到TaskExecutorGateway
     private BiFunction<Object, Throwable, Void> deployOrHandleError(
             final ExecutionDeploymentHandle deploymentHandle) {
 
         return (ignored, throwable) -> {
             final ExecutionVertexVersion requiredVertexVersion =
                     deploymentHandle.getRequiredVertexVersion();
+            // ExecutionVertex 就是executionGraph中的一个顶点
+            // 在创建ExecutionVertex时 内部有一个Execution对象
             final Execution execution = deploymentHandle.getExecution();
 
             if (execution.getState() != ExecutionState.SCHEDULED

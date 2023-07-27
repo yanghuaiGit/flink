@@ -526,6 +526,7 @@ public class CheckpointCoordinator {
     private void startTriggeringCheckpoint(CheckpointTriggerRequest request) {
         try {
             synchronized (lock) {
+                //CheckpointCoordinator的状态的检查
                 preCheckGlobalState(request.isPeriodic);
             }
 
@@ -535,6 +536,7 @@ public class CheckpointCoordinator {
 
             final long timestamp = System.currentTimeMillis();
 
+            //得到哪些task（source）需要触发 哪些算子需要等待完成checkPoint（所有任务节点）等
             CompletableFuture<CheckpointPlan> checkpointPlanFuture =
                     checkpointPlanCalculator.calculateCheckpointPlan();
 
@@ -561,6 +563,7 @@ public class CheckpointCoordinator {
                                     executor)
                             .thenApplyAsync(
                                     (checkpointInfo) ->
+                                            //创建Pendingcheckpoint，里面会注册一个cancel，在超时之后会取消
                                             createPendingCheckpoint(
                                                     timestamp,
                                                     request.props,
@@ -576,6 +579,7 @@ public class CheckpointCoordinator {
                             .thenApplyAsync(
                                     pendingCheckpoint -> {
                                         try {
+                                            //创建checkpoint路径
                                             CheckpointStorageLocation checkpointStorageLocation =
                                                     initializeCheckpointLocation(
                                                             pendingCheckpoint.getCheckpointID(),
@@ -601,6 +605,12 @@ public class CheckpointCoordinator {
                                             pendingCheckpoint.setCheckpointTargetLocation(
                                                     checkpointInfo.f1);
                                         }
+                                        //OperatorCoordinator的检查点操作
+                                        //OperatorCoordinator的检查点操作：这是Flink 1.10引入的一个新功能，主要用于协调和管理Operator的全局行为。
+                                        // 这对于一些需要全局视图或交互的Operator来说非常有用。例如，一个Source Operator可能需要从外部系统（如Kafka）消费数据，
+                                        // 它需要一个全局视图来管理分区消费的分配。在检查点操作中，OperatorCoordinator可以保存这种全局视图的状态，以便在任务失败时能够正确地恢复消费的分配。
+                                        //这两种检查点操作都是为了实现任务失败时的恢复，但它们关注的是不同的部分。Task的检查点操作关注的是数据流处理的进度和中间状态，而OperatorCoordinator的检查点操作关注的是Operator的全局行为。
+                                        //值得注意的是，通常情况下，Task的检查点操作和OperatorCoordinator的检查点操作是并行执行的。这是因为在一个检查点操作中，不仅需要保存Task的状态，也需要保存OperatorCoordinator的状态，以便在任务失败时能够完整地恢复任务的运行状态。
                                         return OperatorCoordinatorCheckpoints
                                                 .triggerAndAcknowledgeAllCoordinatorCheckpointsWithCompletion(
                                                         coordinatorsToCheckpoint,
@@ -657,6 +667,7 @@ public class CheckpointCoordinator {
                                                 onTriggerFailure(checkpoint, throwable);
                                             }
                                         } else {
+                                            //触发checkpoint
                                             triggerCheckpointRequest(
                                                     request, timestamp, checkpoint);
                                         }
@@ -1140,7 +1151,8 @@ public class CheckpointCoordinator {
             }
 
             if (checkpoint != null && !checkpoint.isDisposed()) {
-
+                //在这里就会将task上报的元数据信息(checkpoint的路径地址 状态数据大小等等)添加到PendingCheckPoint里
+                //如果接收到全部的task上报的Ack信息，就执行completePendingCheckpoint
                 switch (checkpoint.acknowledgeTask(
                         message.getTaskExecutionId(),
                         message.getSubtaskState(),
@@ -1153,6 +1165,7 @@ public class CheckpointCoordinator {
                                 message.getJob(),
                                 taskManagerLocationInfo);
 
+                        //如果所有的task都完成了ack之后，就会做以下操作
                         if (checkpoint.isFullyAcknowledged()) {
                             completePendingCheckpoint(checkpoint);
                         }
@@ -1262,6 +1275,8 @@ public class CheckpointCoordinator {
         completedCheckpointStore.getSharedStateRegistry().checkpointCompleted(checkpointId);
 
         try {
+            //将PendingCheckpoint 转成CompletedCheckpoint，标志着checkpoint过程完成，CompletedCheckpoint里包含了checkpoint的元数据信息，
+            // 包括checkpoint的路径地址，状态数据大小等等，同时也会将元数据信息进行持久化，目录为$checkpointDir/$uuid/chk-***/_metadata，也会把过期的checkpoint数据给删除
             completedCheckpoint = finalizeCheckpoint(pendingCheckpoint);
 
             // the pending checkpoint must be discarded after the finalization
@@ -1283,6 +1298,7 @@ public class CheckpointCoordinator {
             scheduleTriggerRequest();
         }
 
+        //通知所有的task进行commit操作，一般来说，task的commit操作其实不需要做什么，但是像那种TwoPhaseCommitSinkFunction，比如FlinkKafkaProducer，就会进行一些事物的提交操作等。
         cleanupAfterCompletedCheckpoint(
                 pendingCheckpoint, checkpointId, completedCheckpoint, lastSubsumed, props);
     }
@@ -1323,6 +1339,7 @@ public class CheckpointCoordinator {
             dropSubsumedCheckpoints(checkpointId);
 
             // send the "notify complete" call to all vertices, coordinators, etc.
+            //通知task 已完成
             sendAcknowledgeMessages(
                     pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
                     checkpointId,

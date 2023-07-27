@@ -505,11 +505,13 @@ public class DeclarativeSlotManager implements SlotManager {
         }
 
         final Map<JobID, ResourceCounter> unfulfilledRequirements = new LinkedHashMap<>();
+        //遍历得到一个 ResourceRequirement 就是一个Slot申请请求的一个代表
         for (Map.Entry<JobID, Collection<ResourceRequirement>> resourceRequirements :
                 missingResources.entrySet()) {
             final JobID jobId = resourceRequirements.getKey();
 
             final ResourceCounter unfulfilledJobRequirements =
+                    //为job申请slot
                     tryAllocateSlotsForJob(jobId, resourceRequirements.getValue());
             if (!unfulfilledJobRequirements.isEmpty()) {
                 unfulfilledRequirements.put(jobId, unfulfilledJobRequirements);
@@ -527,9 +529,11 @@ public class DeclarativeSlotManager implements SlotManager {
                                                 PendingTaskManagerSlot::getResourceProfile,
                                                 Collectors.summingInt(x -> 1))));
 
+        //资源需求 SlotRequest
         for (Map.Entry<JobID, ResourceCounter> unfulfilledRequirement :
                 unfulfilledRequirements.entrySet()) {
             pendingSlots =
+                    //满足PendingSLot
                     tryFulfillRequirementsWithPendingSlots(
                             unfulfilledRequirement.getKey(),
                             unfulfilledRequirement.getValue().getResourcesWithCount(),
@@ -583,6 +587,7 @@ public class DeclarativeSlotManager implements SlotManager {
                             availableSlots.values(),
                             this::getNumberRegisteredSlotsOf);
             if (reservedSlot.isPresent()) {
+                // 开始告知TaskExecutor要进行分配了
                 allocateSlot(reservedSlot.get(), jobId, targetAddress, requiredResource);
                 availableSlots.remove(reservedSlot.get().getSlotId());
             } else {
@@ -637,7 +642,7 @@ public class DeclarativeSlotManager implements SlotManager {
         taskExecutorManager.markUsed(instanceId);
         pendingSlotAllocations.put(slotId, allocationId);
 
-        // RPC call to the task manager
+        // RPC call to the task manager 告诉TaskExecutor处理Slot申请
         CompletableFuture<Acknowledge> requestFuture =
                 gateway.requestSlot(
                         slotId,
@@ -703,6 +708,7 @@ public class DeclarativeSlotManager implements SlotManager {
         FutureUtils.assertNoException(slotAllocationResponseProcessingFuture);
     }
 
+    //ResourceManager的逻辑分派
     private ResourceCounter tryFulfillRequirementsWithPendingSlots(
             JobID jobId,
             Collection<Map.Entry<ResourceProfile, Integer>> missingResources,
