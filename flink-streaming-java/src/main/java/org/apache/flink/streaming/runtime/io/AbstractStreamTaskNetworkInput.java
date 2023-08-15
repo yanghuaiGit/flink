@@ -51,7 +51,11 @@ public abstract class AbstractStreamTaskNetworkInput<
                 T, R extends RecordDeserializer<DeserializationDelegate<StreamElement>>>
         implements StreamTaskInput<T> {
     protected final CheckpointedInputGate checkpointedInputGate;
+
+    //反序列化currentRecordDeserializer里的数据为StreamElement
     protected final DeserializationDelegate<StreamElement> deserializationDelegate;
+
+    //currentRecordDeserializer里的序列化最终是交给inputSerializer操作的
     protected final TypeSerializer<T> inputSerializer;
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
@@ -60,6 +64,8 @@ public abstract class AbstractStreamTaskNetworkInput<
 
     protected final int inputIndex;
     private InputChannelInfo lastChannel = null;
+
+    //处理从InputGate里获取的序列化数据，其实就是将byte字节数据存储到currentRecordDeserializer，再交给deserializationDelegate进行反序列化处理转为StreamElement
     private R currentRecordDeserializer = null;
 
     public AbstractStreamTaskNetworkInput(

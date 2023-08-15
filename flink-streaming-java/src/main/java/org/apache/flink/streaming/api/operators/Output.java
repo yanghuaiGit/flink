@@ -45,7 +45,7 @@ public interface Output<T> extends Collector<T> {
      */
     void emitWatermark(Watermark mark);
 
-    void emitWatermarkStatus(WatermarkStatus watermarkStatus);
+    void emitWatermarkStatus(WatermarkStatus watermarkåStatus);
 
     /**
      * Emits a record to the side output identified by the given {@link OutputTag}.

@@ -78,6 +78,7 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
 
             numRecordsIn.inc();
             StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
+            //keyby 包括状态这些就是在这里先设置进去的
             input.setKeyContextElement(copy);
             input.processElement(copy);
         } catch (ClassCastException e) {

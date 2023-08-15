@@ -309,6 +309,15 @@ public class OperatorCoordinatorHolder
                             if (failure != null) {
                                 result.completeExceptionally(failure);
                             } else if (closeGateways(checkpointId)) {
+                                //closeGateways是为了防止在执行检查点操作期间任务的状态发生改变。
+                                //
+                                //在检查点操作过程中，OperatorCoordinatorHolder要求所有关联的任务（Task）将其当前状态保存下来。然而，这个操作并非原子性的，也就是说，在保存状态的同时，任务的状态可能会因为正在处理的数据流而发生改变。这可能导致保存的状态与实际的状态不一致，从而在任务失败并恢复时引发问题。
+                                //
+                                //closeGateways方法通过关闭任务的输入和输出通道（也就是“闸门”）来防止这种情况的发生。具体来说，它会暂时阻止新的数据流进入任务和已处理的数据流离开任务，从而确保在执行检查点操作期间任务的状态保持不变。
+                                //
+                                //当检查点操作完成后，OperatorCoordinatorHolder会重新打开任务的输入和输出通道，允许数据流重新流动。这样，就可以确保检查点操作的正确性，同时最小化了对任务处理速度的影响。
+                                //
+                                //需要注意的是，这种关闭和重新打开任务通道的操作是透明的，也就是说，它不会影响到数据流的正常处理。任务会继续处理所有在关闭通道前已经接收到的数据，同时也会保存所有在关闭通道期间到达的新数据，等到通道重新打开后再进行处理。
                                 completeCheckpointOnceEventsAreDone(checkpointId, result, success);
                             } else {
                                 // if we cannot close the gateway, this means the checkpoint
