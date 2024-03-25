@@ -121,6 +121,10 @@ public class StreamNode {
         this.operatorName = operatorName;
         this.operatorDescription = operatorName;
         this.operatorFactory = operatorFactory;
+        //实时 SourceStreamTask.class
+        //离线 OneInputStreamTask.class
+        //如果是 flinp27的source接口 SourceOperatorStreamTask.class
+        //最终还是调用里面的 operatorFactory 进行实际数据处理
         this.jobVertexClass = jobVertexClass;
         this.slotSharingGroup = slotSharingGroup;
         this.coLocationGroup = coLocationGroup;
