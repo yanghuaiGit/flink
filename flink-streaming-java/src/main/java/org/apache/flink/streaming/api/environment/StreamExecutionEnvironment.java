@@ -2288,7 +2288,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
                 .setStateBackend(defaultStateBackend)
-                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
+                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)//是否开启增量checkpoint
                 .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)

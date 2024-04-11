@@ -324,6 +324,7 @@ public class StreamGraphGenerator {
 
         setFineGrainedGlobalStreamExchangeMode(streamGraph);
 
+      // 找出所有的分区是Broadcast的edge，将其设置为不支持【非对齐Checkpoint】
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
                 for (StreamEdge edge : node.getInEdges()) {
@@ -341,6 +342,17 @@ public class StreamGraphGenerator {
         return builtStreamGraph;
     }
 
+    /**
+     * 它检查分区器是否是 pointwise 或者 broadcast。Pointwise 分区意味着每个记录被发送到恰好一个下游操作符实例，
+     * 而 broadcast 分区意味着每个记录被发送到所有下游操作符实例。
+     * 如果满足这两种情况中的任何一种，该方法返回 true，
+     * 表示应该为这个边禁用 unaligned checkpointing。
+     * Unaligned checkpointing 是 Flink 中的一个特性，
+     * 可以在 backpressure 下提供更好的性能，但可能不适合所有类型的数据分区
+     * 。在这种情况下，该方法建议对 pointwise 或 broadcast 分区不适用 unaligned checkpointing。
+     * @param edge
+     * @return
+     */
     private boolean shouldDisableUnalignedCheckpointing(StreamEdge edge) {
         StreamPartitioner<?> partitioner = edge.getPartitioner();
         return partitioner.isPointwise() || partitioner.isBroadcast();
