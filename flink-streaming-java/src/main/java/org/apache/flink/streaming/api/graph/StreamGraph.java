@@ -633,22 +633,26 @@ public class StreamGraph implements Pipeline {
 
     //按照类型加边
     private void addEdgeInternal(
-            Integer upStreamVertexID,
-            Integer downStreamVertexID,
-            int typeNumber,
-            StreamPartitioner<?> partitioner,
-            List<String> outputNames,
-            OutputTag outputTag,
-            StreamExchangeMode exchangeMode,
-            IntermediateDataSetID intermediateDataSetId) {
+            Integer upStreamVertexID,//上游节点的 ID。
+            Integer downStreamVertexID,//下游节点的 ID。
+            int typeNumber,//用于联合任务（co-tasks）中的输入类型编号。
+            StreamPartitioner<?> partitioner,//数据分区器，决定数据如何在任务之间进行分区。
+            List<String> outputNames,//输出名称列表。
+            OutputTag outputTag,//输出标签，用于区分不同的输出流。
+            StreamExchangeMode exchangeMode,//数据交换模式，决定数据是如何在不同任务之间传输的。
+            IntermediateDataSetID intermediateDataSetId//中间数据集的 ID，用于标识边连接的中间结果集。
+    ) {
 
-        //上游是侧输出时，递归调用，并传入侧输出信息
+        //处理虚拟侧输出节点
         if (virtualSideOutputNodes.containsKey(upStreamVertexID)) {
+            //这表示上游节点是一个虚拟侧输出节点。
             int virtualId = upStreamVertexID;
+            //从 virtualSideOutputNodes 中获取实际的上游节点 ID 和对应的输出标签 OutputTag。
             upStreamVertexID = virtualSideOutputNodes.get(virtualId).f0;
             if (outputTag == null) {
                 outputTag = virtualSideOutputNodes.get(virtualId).f1;
             }
+            //递归调用 addEdgeInternal 方法，用实际的上游节点 ID 和输出标签继续处理。
             addEdgeInternal(
                     upStreamVertexID,
                     downStreamVertexID,
@@ -658,14 +662,17 @@ public class StreamGraph implements Pipeline {
                     outputTag,
                     exchangeMode,
                     intermediateDataSetId);
-        } else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {
+        } else if (virtualPartitionNodes.containsKey(upStreamVertexID)) {// 处理虚拟分区节点
             //如果上游是partition时，递归调用，并传入partition信息
             int virtualId = upStreamVertexID;
+            //从 virtualPartitionNodes 中获取实际的上游节点 ID 和对应的分区器 partitioner 及交换模式 exchangeMode。
             upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
             if (partitioner == null) {
+                //如果 partitioner 为 null，则使用虚拟节点中的 partitioner。
                 partitioner = virtualPartitionNodes.get(virtualId).f1;
             }
             exchangeMode = virtualPartitionNodes.get(virtualId).f2;
+            //递归调用 addEdgeInternal 方法，用实际的上游节点 ID、分区器和交换模式继续处理。
             addEdgeInternal(
                     upStreamVertexID,
                     downStreamVertexID,
@@ -703,7 +710,7 @@ public class StreamGraph implements Pipeline {
 
         // If no partitioner was specified and the parallelism of upstream and downstream
         // operator matches use forward partitioning, use rebalance otherwise.
-        //未指定Partitioner的话 会为其选择forward或rebalance分区
+        //未指定Partitioner的话 如果上下游并行度一致会为其选择forward否则是rebalance分区
         if (partitioner == null
                 && upstreamNode.getParallelism() == downstreamNode.getParallelism()) {
             partitioner =

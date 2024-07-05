@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -59,8 +60,10 @@ import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
@@ -128,10 +131,10 @@ public class StreamingJobGraphGenerator {
     @VisibleForTesting
     public static JobGraph createJobGraph(StreamGraph streamGraph) {
         return new StreamingJobGraphGenerator(
-                        Thread.currentThread().getContextClassLoader(),
-                        streamGraph,
-                        null,
-                        Runnable::run)
+                Thread.currentThread().getContextClassLoader(),
+                streamGraph,
+                null,
+                Runnable::run)
                 .createJobGraph();
     }
 
@@ -149,7 +152,7 @@ public class StreamingJobGraphGenerator {
                         new ExecutorThreadFactory("flink-operator-serialization-io"));
         try {
             return new StreamingJobGraphGenerator(
-                            userClassLoader, streamGraph, jobID, serializationExecutor)
+                    userClassLoader, streamGraph, jobID, serializationExecutor)
                     .createJobGraph();
         } finally {
             serializationExecutor.shutdown();
@@ -186,8 +189,8 @@ public class StreamingJobGraphGenerator {
 
     // Futures for the serialization of operator coordinators
     private final Map<
-                    JobVertexID,
-                    List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>>
+            JobVertexID,
+            List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>>
             coordinatorSerializationFuturesPerJobVertex = new HashMap<>();
 
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputs;
@@ -227,6 +230,7 @@ public class StreamingJobGraphGenerator {
 
         // Generate deterministic hashes for the nodes in order to identify them across
         // submission iff they didn't change.
+        //每个节点生成hash
         Map<Integer, byte[]> hashes =
                 defaultStreamGraphHasher.traverseStreamGraphAndGenerateHashes(streamGraph);
 
@@ -236,11 +240,11 @@ public class StreamingJobGraphGenerator {
             legacyHashes.add(hasher.traverseStreamGraphAndGenerateHashes(streamGraph));
         }
 
-        //todo 最重要的函数 生成JobVertex JobEdge等，并尽可能地将多个节点chain在一起
+        // 最重要的函数 生成JobVertex JobEdge等，并尽可能地将多个节点chain在一起
         // operatorChain的构建
         setChaining(hashes, legacyHashes);
 
-        //将每个Jobvertex的入边集合也序列化到该JobVertex的StreamConfig种(出边集合在setChaing的时候写入了)
+        //将每个Jobvertex的入边集合也序列化到该JobVertex的StreamConfig中
         setPhysicalEdges();
 
         markContainsSourcesOrSinks();
@@ -311,8 +315,8 @@ public class StreamingJobGraphGenerator {
     private void waitForSerializationFuturesAndUpdateJobVertices()
             throws ExecutionException, InterruptedException {
         for (Map.Entry<
-                        JobVertexID,
-                        List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>>
+                JobVertexID,
+                List<CompletableFuture<SerializedValue<OperatorCoordinator.Provider>>>>
                 futuresPerJobVertex : coordinatorSerializationFuturesPerJobVertex.entrySet()) {
             final JobVertexID jobVertexId = futuresPerJobVertex.getKey();
             final JobVertex jobVertex = jobGraph.findVertexByID(jobVertexId);
@@ -452,19 +456,19 @@ public class StreamingJobGraphGenerator {
                                     id ->
                                             streamGraph.getSourceIDs().contains(id)
                                                     && chainedConfigs
-                                                            .get(node.getId())
-                                                            .containsKey(id))
+                                                    .get(node.getId())
+                                                    .containsKey(id))
                             .map(streamGraph::getStreamNode)
                             .collect(Collectors.toList());
         }
         return chainedSources.isEmpty()
                 ? node.getOperatorDescription()
                 : String.format(
-                        "%s [%s]",
-                        node.getOperatorDescription(),
-                        chainedSources.stream()
-                                .map(StreamNode::getOperatorDescription)
-                                .collect(Collectors.joining(", ")));
+                "%s [%s]",
+                node.getOperatorDescription(),
+                chainedSources.stream()
+                        .map(StreamNode::getOperatorDescription)
+                        .collect(Collectors.joining(", ")));
     }
 
     @SuppressWarnings("deprecation")
@@ -553,6 +557,58 @@ public class StreamingJobGraphGenerator {
         for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
             final StreamNode sourceNode = streamGraph.getStreamNode(sourceNodeId);
 
+//            这段代码的目的是为了处理一种特殊情况，即当源节点的操作符工厂是SourceOperatorFactory类型，并且源节点只有一个输出边的情况。在这种情况下，源节点可能会被链接到另一个操作符，作为该操作符的输入。  这里的逻辑是这样的：
+//            首先，检查源节点的操作符工厂是否是SourceOperatorFactory类型，并且源节点只有一个输出边。如果不满足这些条件，那么就跳过后面的逻辑，直接将源节点作为一个独立的操作链的入口点。
+//            如果满足上述条件，那么获取源节点的输出边，以及该边的目标节点。然后，检查目标节点的链接策略是否是HEAD_WITH_SOURCES，并且源节点的输出边是否可以被链接。如果满足这些条件，那么将源节点作为目标节点操作链的一部分，而不是作为一个独立的操作链的入口点。
+//            在将源节点添加到目标节点的操作链中时，需要创建一个SourceInputConfig对象，用于存储源节点的输出边的信息。然后，创建一个StreamConfig对象，用于存储源节点的配置信息。最后，将这些信息添加到chainedSources映射中，以便后续使用。
+//            此外，还需要获取源节点的操作符工厂，并从中获取操作符协调器的提供者。然后，将这个提供者添加到目标节点的操作链信息中。
+//            因此，这段代码不能简单地替换为chainEntryPoints.put(sourceNodeId, new OperatorChainInfo(sourceNodeId, hashes, legacyHashes, chainedSources, streamGraph));，因为这样做会忽略源节点可能被链接到另一个操作符的情况。
+//
+//            代码示例：
+//            public class FlinkJob {
+//
+//                public static void main(String[] args) throws Exception {
+//
+//                    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+//
+//                    DataStream<String> text1 = env.fromElements("Hello", "Flink");
+//                    DataStream<String> text2 = env.fromElements("Hello", "World");
+//
+//                    DataStream<String> mapped1 = text1.map(new MapFunction<String, String>() {
+//                        @Override
+//                        public String map(String value) {
+//                            return value.toUpperCase();
+//                        }
+//                    });
+//
+//                    DataStream<String> mapped2 = text2.map(new MapFunction<String, String>() {
+//                        @Override
+//                        public String map(String value) {
+//                            return value.toLowerCase();
+//                        }
+//                    });
+//
+//                    DataStream<String> connectedStream = mapped1.connect(mapped2)
+//                            .map(new CoMapFunction<String, String, String>() {
+//                                @Override
+//                                public String map1(String value) {
+//                                    return value;
+//                                }
+//
+//                                @Override
+//                                public String map2(String value) {
+//                                    return value;
+//                                }
+//                            });
+//
+//                    connectedStream.getTransformation().setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
+//
+//                    connectedStream.print();
+//
+//                    env.execute("Flink Job Example");
+//                }
+//            }
+//            在这个示例中，我们创建了两个源数据流 text1 和 text2，然后对它们进行了 map 操作得到 mapped1 和 mapped2。然后我们将 mapped1 和 mapped2 连接起来，形成了一个连接流 connectedStream。最后，我们将 connectedStream 的链接策略设置为 ChainingStrategy.HEAD_WITH_SOURCES。  在这种情况下，mapped1 和 mapped2 作为源操作符，会被链接到 connectedStream 的操作符。因此，当 Flink 在生成 JobGraph 时，会进入 targetChainingStrategy == ChainingStrategy.HEAD_WITH_SOURCES && isChainableInput(sourceOutEdge, streamGraph) 的条件。
             if (sourceNode.getOperatorFactory() instanceof SourceOperatorFactory
                     && sourceNode.getOutEdges().size() == 1) {
                 // as long as only NAry ops support this chaining, we need to skip the other parts
@@ -616,6 +672,8 @@ public class StreamingJobGraphGenerator {
     private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes) {
         // we separate out the sources that run as inputs to another operator (chained inputs)
         // from the sources that needs to run as the main (head) operator.
+        //key是所有的source节点，从source节点开始判断后续节点是否可以chain
+        //如果是有connector操作 把多个流connect一起，那这个source节点可能被合并为一个
         final Map<Integer, OperatorChainInfo> chainEntryPoints =
                 buildChainedInputsAndGetHeadInputs(hashes, legacyHashes);
         final Collection<OperatorChainInfo> initialEntryPoints =
@@ -1103,10 +1161,10 @@ public class StreamingJobGraphGenerator {
                             && consumerMaxParallelism == outputCandidate.getConsumerMaxParallelism()
                             && outputCandidate.getPartitionType() == partitionType
                             && Objects.equals(
-                                    outputCandidate.getPersistentDataSetId(),
-                                    consumerEdge.getIntermediateDatasetIdToProduce())
+                            outputCandidate.getPersistentDataSetId(),
+                            consumerEdge.getIntermediateDatasetIdToProduce())
                             && Objects.equals(
-                                    outputCandidate.getOutputTag(), consumerEdge.getOutputTag())
+                            outputCandidate.getOutputTag(), consumerEdge.getOutputTag())
                             && Objects.equals(partitioner, outputCandidate.getPartitioner())) {
                         reusableOutput = outputCandidate;
                         outputsConsumedByEdge.put(consumerEdge, reusableOutput);
@@ -1175,6 +1233,7 @@ public class StreamingJobGraphGenerator {
 
     private void connect(Integer headOfChain, StreamEdge edge, NonChainedOutput output) {
 
+        //因为edge是不能chacin的边，所以这个是物理边，如果2个节点是可以chain，那么就不会有physicalEdgesInOrder边
         physicalEdgesInOrder.add(edge);
 
         Integer downStreamVertexID = edge.getTargetId();
@@ -1302,8 +1361,10 @@ public class StreamingJobGraphGenerator {
 
     /**
      * 当前节点和下游一个顶点之间的边
+     *
      * @param edge
      * @param streamGraph
+     *
      * @return
      */
     public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
@@ -1317,8 +1378,10 @@ public class StreamingJobGraphGenerator {
 
     /**
      * 是否可以chain的条件
+     *
      * @param edge
      * @param streamGraph
+     *
      * @return
      */
     private static boolean isChainableInput(StreamEdge edge, StreamGraph streamGraph) {
@@ -1329,9 +1392,9 @@ public class StreamingJobGraphGenerator {
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && arePartitionerAndExchangeModeChainable(
-                        edge.getPartitioner(),
-                        edge.getExchangeMode(),
-                        streamGraph.getExecutionConfig().isDynamicGraph())
+                edge.getPartitioner(),
+                edge.getExchangeMode(),
+                streamGraph.getExecutionConfig().isDynamicGraph())
                 //并行度一致
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 //没有禁用chain
@@ -1831,15 +1894,15 @@ public class StreamingJobGraphGenerator {
         return chainedSourceInfos.isEmpty()
                 ? operatorName
                 : String.format(
-                        "%s [%s]",
-                        operatorName,
-                        chainedSourceInfos.stream()
-                                .map(
-                                        chainedSourceInfo ->
-                                                chainedSourceInfo
-                                                        .getOperatorConfig()
-                                                        .getOperatorName())
-                                .collect(Collectors.joining(", ")));
+                "%s [%s]",
+                operatorName,
+                chainedSourceInfos.stream()
+                        .map(
+                                chainedSourceInfo ->
+                                        chainedSourceInfo
+                                                .getOperatorConfig()
+                                                .getOperatorName())
+                        .collect(Collectors.joining(", ")));
     }
 
     /**
